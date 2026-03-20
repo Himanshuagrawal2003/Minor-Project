@@ -78,7 +78,7 @@ export function Login() {
               <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
                 "This platform has completely transformed how we handle daily student requests and maintenance issues. Everything is tracked seamlessly."
               </p>
-              <p className="text-sm font-semibold mt-3 text-foreground">— Dr. S. Patel, Chief Warden</p>
+              <p className="text-sm font-semibold mt-3 text-foreground">— Himanshu Agrawal, Admin</p>
             </div>
           </div>
         </div>

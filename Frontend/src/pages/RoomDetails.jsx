@@ -1,19 +1,28 @@
-import React from 'react';
-import { Building2, Users, BedDouble, Wrench } from 'lucide-react';
-import { DashboardCard } from '../components/DashboardCard';
+import React from "react";
+import { Building2, Users, BedDouble, Wrench } from "lucide-react";
+import { DashboardCard } from "../components/DashboardCard";
 
 export function RoomDetails() {
   return (
-    <div className="space-y-6">
+    <div className="px-4 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Room Information</h1>
-          <p className="text-muted-foreground mt-1">Details about your current accommodation.</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Room Information
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Details about your current accommodation.
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DashboardCard title="Room Number" value="B-204" icon={BedDouble} className="ring-1 ring-primary/20 bg-primary/5" />
+        <DashboardCard
+          title="Room Number"
+          value="B-204"
+          icon={BedDouble}
+          className="ring-1 ring-primary/20 bg-primary/5"
+        />
         <DashboardCard title="Building" value="Boys Hostel" icon={Building2} />
         <DashboardCard title="Block Name" value="Block B" />
         <DashboardCard title="Capacity" value="2 Seater" />
@@ -33,8 +42,12 @@ export function RoomDetails() {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">John Smith (You)</h3>
-                <p className="text-sm text-muted-foreground">Computer Science, 2nd Year</p>
-                <p className="text-sm text-muted-foreground mt-1">+91 98765 43210</p>
+                <p className="text-sm text-muted-foreground">
+                  Computer Science, 2nd Year
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  +91 98765 43210
+                </p>
               </div>
             </div>
             <div className="p-6 flex items-center gap-4">
@@ -43,8 +56,12 @@ export function RoomDetails() {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">Amit Malhotra</h3>
-                <p className="text-sm text-muted-foreground">Information Tech, 2nd Year</p>
-                <p className="text-sm text-muted-foreground mt-1">+91 98765 12345</p>
+                <p className="text-sm text-muted-foreground">
+                  Information Tech, 2nd Year
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  +91 98765 12345
+                </p>
               </div>
             </div>
           </div>

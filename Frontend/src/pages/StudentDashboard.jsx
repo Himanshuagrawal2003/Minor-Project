@@ -18,27 +18,18 @@ export function StudentDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+        <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back, John!</h1>
-          <p className="text-muted-foreground mt-1">Room B-204 • Block B</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-destructive text-destructive-foreground font-medium rounded-lg hover:bg-destructive/90 transition-all shadow-sm flex items-center gap-2">
-            <AlertTriangle size={18} />
-            Emergency
-          </button>
-          <button className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-all shadow-sm">
-            New Complaint
-          </button>
+          <h1 className="text-2xl font-bold tracking-tight">Welcome back, Himanshu!</h1>
+          <p className="text-muted-foreground mt-1">Room S-30 • Block Senior Boys Hostel</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <DashboardCard title="Active Complaints" value="1" icon={MessageSquare} className="border-amber-200 dark:border-amber-900/50" />
         <DashboardCard title="Leave Requests" value="0" icon={CalendarDays} />
-        <DashboardCard title="Room Info" value="B-204" icon={Building2} />
+        <DashboardCard title="Room Info" value="S-30" icon={Building2} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -46,7 +37,6 @@ export function StudentDashboard() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-tight">Recent Complaints</h2>
-              <button className="text-sm font-medium text-primary hover:underline">View All</button>
             </div>
             <DataTable columns={recentComplaintsColumns} data={recentComplaintsData} />
           </div>
@@ -75,9 +65,6 @@ export function StudentDashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Today's Mess Menu</h2>
-            <button className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-              <Coffee size={14} /> Full Menu
-            </button>
           </div>
           <div className="glass-card overflow-hidden">
             <div className="p-4 border-b border-border/50 bg-amber-500/5">

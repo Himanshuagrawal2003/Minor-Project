@@ -57,7 +57,7 @@ export function DashboardLayout({ role }) {
         />
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-muted/20">
-          <div className="p-4 md:p-6 lg:p-8 mx-auto max-w-7xl relative min-h-[calc(100vh-4rem)]">
+          <div className="p-2 md:p-6 lg:p-6 mx-auto max-w-7xl relative min-h-[calc(100vh-4rem)]">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out fill-mode-both">
               <Outlet />
             </div>

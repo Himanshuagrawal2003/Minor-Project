@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Moon, Sun, Menu, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -26,6 +26,18 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
     }
+  };
+
+  const userName = localStorage.getItem('name') || 'Admin';
+  const role = localStorage.getItem('role') || 'admin';
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('name');
+    localStorage.removeItem('userID');
+    navigate('/');
   };
 
   return (
@@ -61,9 +73,22 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
         </button>
 
-        <Link to={`/${localStorage.getItem('role') || 'admin'}/profile`} className="h-8 w-8 ml-2 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary cursor-pointer hover:bg-primary/20 transition-colors">
-          <User size={16} />
-        </Link>
+        <div className="flex items-center gap-2 pl-2 border-l border-border/50 ml-2">
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-sm font-semibold leading-none">{userName}</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{role}</span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="flex h-8 items-center gap-2 px-3 text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+            title="Sign Out"
+          >
+            Logout
+          </button>
+          <Link to={`/${role}/profile`} className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary cursor-pointer hover:bg-primary/20 transition-colors ml-1">
+            <User size={16} />
+          </Link>
+        </div>
       </div>
     </header>
   );

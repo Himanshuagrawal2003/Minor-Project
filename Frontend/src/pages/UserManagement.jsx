@@ -1,323 +1,613 @@
-import React, { useState, useRef } from 'react';
-import { Users, UserPlus, Search, FileSpreadsheet, Upload, Download, Check, AlertCircle, Loader2, UserCheck, ShieldCheck, Mail, BookOpen, Building, Copy, ExternalLink, Printer } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
-import { StatusBadge } from '../components/StatusBadge';
-import { FormInput } from '../components/FormInput';
-import { cn } from '../lib/utils';
-import * as XLSX from 'xlsx';
+import React, { useState, useRef } from "react";
+import {
+  Users,
+  UserPlus,
+  Search,
+  FileSpreadsheet,
+  Upload,
+  Download,
+  Check,
+  AlertCircle,
+  Loader2,
+  UserCheck,
+  ShieldCheck,
+  Mail,
+  BookOpen,
+  Building,
+  Copy,
+  ExternalLink,
+  Printer,
+  Trash2,
+} from "lucide-react";
+import { DataTable } from "../components/DataTable";
+import { StatusBadge } from "../components/StatusBadge";
+import { FormInput } from "../components/FormInput";
+import { cn } from "../lib/utils";
+import * as XLSX from "xlsx";
 
 export function UserManagement() {
-  const [activeRole, setActiveRole] = useState('student'); // 'student', 'warden', 'chief-warden'
-  const [activeMethod, setActiveMethod] = useState('manual'); // 'manual', 'bulk'
-  
-  // Mock Users State
+  const [activeRole, setActiveRole] = useState("student");
+  const [activeMethod, setActiveMethod] = useState("manual");
+
   const [users, setUsers] = useState({
     student: [
-      { id: 'S101', name: 'Rahul Sharma', email: 'rahul@example.com', course: 'B.Tech CSE', year: '2nd' },
-      { id: 'S102', name: 'Priya Patel', email: 'priya@example.com', course: 'B.Arch', year: '1st' },
+      { id: "S101", name: "Rahul Sharma", email: "rahul@example.com", course: "B.Tech CSE", year: "2nd" },
+      { id: "S102", name: "Priya Patel", email: "priya@example.com", course: "B.Arch", year: "1st" },
     ],
     warden: [
-      { id: 'W201', name: 'Amit Kumar', email: 'amit@hostel.com', block: 'Block A', experience: '5 Years' },
+      { id: "W201", name: "Amit Kumar", email: "amit@hostel.com", block: "Block A", experience: "5 Years" },
     ],
-    'chief-warden': [
-      { id: 'CW301', name: 'Dr. S.K. Verma', email: 'verma@hostel.com', department: 'Administration' },
-    ]
+    "chief-warden": [
+      { id: "CW301", name: "Dr. S.K. Verma", email: "verma@hostel.com", department: "Administration" },
+    ],
+    staff: [
+      { id: "ST101", name: "Aditya", contact: "8843560943", role: "Plumber" },
+    ],
   });
 
-  const [formData, setFormData] = useState({ name: '', email: '', extra: '' });
+  const [formData, setFormData] = useState({ name: "", email: "", extra: "" });
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [message, setMessage] = useState({ type: "", text: "" });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [deleteSearchTerm, setDeleteSearchTerm] = useState("");
+  const [deleteTab, setDeleteTab] = useState("manual");
   const fileInputRef = useRef(null);
+
+  // Returns the correct extra-field key for each role
+  const getExtraKey = (role) => {
+    switch (role) {
+      case "student": return "course";
+      case "warden": return "block";
+      case "chief-warden": return "department";
+      case "staff": return "role";
+      default: return "extra";
+    }
+  };
+
+  // Returns the ID prefix for each role
+  const getIdPrefix = (role) => {
+    switch (role) {
+      case "student": return "S";
+      case "warden": return "W";
+      case "chief-warden": return "CW";
+      case "staff": return "ST";
+      default: return "U";
+    }
+  };
 
   const handleManualAdd = (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     setTimeout(() => {
-      const prefix = activeRole === 'student' ? 'S' : activeRole === 'warden' ? 'W' : 'CW';
+      const prefix = getIdPrefix(activeRole);
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       const generatedId = `${prefix}${randomNum}`;
 
       const newUser = {
         id: generatedId,
         name: formData.name,
-        email: formData.email,
-        [activeRole === 'student' ? 'course' : activeRole === 'warden' ? 'block' : 'department']: formData.extra
+        // staff uses contact field instead of email
+        ...(activeRole === "staff"
+          ? { contact: formData.email }
+          : { email: formData.email }),
+        [getExtraKey(activeRole)]: formData.extra,
       };
 
-      setUsers({
-        ...users,
-        [activeRole]: [newUser, ...users[activeRole]]
+      setUsers({ ...users, [activeRole]: [newUser, ...users[activeRole]] });
+      setFormData({ name: "", email: "", extra: "" });
+      setMessage({
+        type: "success",
+        text: `Successfully generated Account for ${formData.name}. ID/Password: ${generatedId}`,
       });
-
-      setFormData({ name: '', email: '', extra: '' });
-      setMessage({ type: 'success', text: `Successfully generated Account for ${formData.name}. ID/Password: ${generatedId}` });
       setIsLoading(false);
     }, 600);
   };
 
-  const handleBulkUpload = (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setSelectedFile(file);
+    setMessage({ type: "", text: "" });
+  };
 
+  const processBulkUpload = () => {
+    if (!selectedFile) return;
     setIsLoading(true);
-    setMessage({ type: '', text: '' });
+    setMessage({ type: "", text: "" });
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: "array" });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const newUsers = jsonData.map((row, idx) => ({
-          id: row.ID || row.Id || `TEMP-${idx}`,
-          name: row.Name || 'Unknown',
-          email: row.Email || 'N/A',
-          [activeRole === 'student' ? 'course' : activeRole === 'warden' ? 'block' : 'department']: row.Extra || row.Course || row.Block || row.Department || 'N/A'
+        const newUsers = jsonData.map((row) => ({
+          id: row.ID || row.Id || `${getIdPrefix(activeRole)}${Math.floor(1000 + Math.random() * 9000)}`,
+          name: row.Name || "Unknown",
+          ...(activeRole === "staff"
+            ? { contact: row.Contact || row.Email || "N/A" }
+            : { email: row.Email || "N/A" }),
+          [getExtraKey(activeRole)]:
+            row.Extra || row.Course || row.Block || row.Department || row.Role || "N/A",
         }));
 
-        setUsers({
-          ...users,
-          [activeRole]: [...newUsers, ...users[activeRole]]
-        });
-
-        setMessage({ type: 'success', text: `Bulk uploaded ${newUsers.length} ${activeRole}s successfully!` });
+        setUsers({ ...users, [activeRole]: [...newUsers, ...users[activeRole]] });
+        setMessage({ type: "success", text: `Bulk uploaded ${newUsers.length} ${activeRole}s successfully!` });
+        setSelectedFile(null);
       } catch (err) {
-        setMessage({ type: 'error', text: 'Failed to process file. Please check the format.' });
+        setMessage({ type: "error", text: "Failed to process file. Please check the format." });
       } finally {
         setIsLoading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(selectedFile);
+  };
+
+  const processBulkDelete = () => {
+    if (!selectedFile) return;
+    setIsLoading(true);
+    setMessage({ type: "", text: "" });
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        let successCount = 0;
+        let failedCount = 0;
+        const updatedRoleUsers = [...users[activeRole]];
+
+        jsonData.forEach((row) => {
+          const userId = row.ID || row.Id || row.UserID || row["User ID"];
+          const index = updatedRoleUsers.findIndex((u) => u.id === userId);
+          if (index !== -1) { updatedRoleUsers.splice(index, 1); successCount++; }
+          else { failedCount++; }
+        });
+
+        if (successCount > 0) {
+          setUsers({ ...users, [activeRole]: updatedRoleUsers });
+          setMessage({
+            type: "success",
+            text: `Successfully deleted ${successCount} ${activeRole} accounts. ${failedCount > 0 ? `${failedCount} IDs not found.` : ""}`,
+          });
+          setSelectedFile(null);
+        } else {
+          setMessage({ type: "error", text: "No matching User IDs found in the registry." });
+        }
+      } catch (err) {
+        setMessage({ type: "error", text: "Failed to process file. Please check the format." });
+      } finally {
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsArrayBuffer(selectedFile);
+  };
+
+  const handleDeleteUser = (id) => {
+    if (window.confirm(`Are you sure you want to delete this ${activeRole}? This action cannot be undone.`)) {
+      setUsers({ ...users, [activeRole]: users[activeRole].filter((u) => u.id !== id) });
+      setMessage({ type: "success", text: "User deleted successfully." });
+      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
+    }
   };
 
   const downloadTemplate = () => {
-    const templateData = [
-      { ID: '1001', Name: 'John Doe', Email: 'john@example.com', Extra: activeRole === 'student' ? 'CSE' : activeRole === 'warden' ? 'Block B' : 'Admin' }
-    ];
+    let templateData = [];
+    let filename = "";
+
+    if (activeMethod === "bulk") {
+      templateData = [{
+        ID: "1001",
+        Name: "John Doe",
+        ...(activeRole === "staff" ? { Contact: "9876543210" } : { Email: "john@example.com" }),
+        Extra: activeRole === "student" ? "CSE" : activeRole === "warden" ? "Block B" : activeRole === "staff" ? "Electrician" : "Admin",
+      }];
+      filename = `${activeRole}_upload_template.xlsx`;
+    } else {
+      templateData = [{ ID: "S101" }, { ID: "W201" }];
+      filename = `${activeRole}_delete_template.xlsx`;
+    }
+
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, `${activeRole}_upload_template.xlsx`);
+    XLSX.writeFile(wb, filename);
   };
 
   const downloadAllCredentials = () => {
-    const data = users[activeRole].map(u => ({
-      'Full Name': u.name,
-      'User ID / Username': u.id,
-      'Temporary Password': u.id,
-      'Role': activeRole.toUpperCase()
+    const data = users[activeRole].map((u) => ({
+      "Full Name": u.name,
+      "User ID / Username": u.id,
+      "Temporary Password": u.id,
+      Role: activeRole.toUpperCase(),
     }));
-    
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Credentials");
     XLSX.writeFile(wb, `${activeRole}_credentials_list.xlsx`);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    // Simple toast-like feedback could be added here, but for now just a console log or visual cue
-  };
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text); };
 
   const columns = {
     student: [
-      { header: 'Student ID', accessorKey: 'id' },
-      { header: 'Name', accessorKey: 'name' },
-      { header: 'Email', accessorKey: 'email' },
-      { header: 'Course', accessorKey: 'course' },
-      { 
-        header: 'Temp Password', 
-        accessorKey: 'id', 
+      { header: "Student ID", accessorKey: "id" },
+      { header: "Name", accessorKey: "name" },
+      { header: "Email", accessorKey: "email" },
+      { header: "Course", accessorKey: "course" },
+      {
+        header: "Temp Password", accessorKey: "id",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
             <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button 
-              onClick={() => copyToClipboard(row.id)}
-              className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all"
-              title="Copy ID"
-            >
+            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all" title="Copy ID">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
-        ) 
+        ),
+      },
+      {
+        header: "Action", accessorKey: "id",
+        cell: (row) => (
+          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Student">
+            <Trash2 size={16} />
+          </button>
+        ),
       },
     ],
     warden: [
-      { header: 'Warden ID', accessorKey: 'id' },
-      { header: 'Name', accessorKey: 'name' },
-      { header: 'Email', accessorKey: 'email' },
-      { header: 'Block', accessorKey: 'block' },
-      { 
-        header: 'Temp Password', 
-        accessorKey: 'id', 
+      { header: "Warden ID", accessorKey: "id" },
+      { header: "Name", accessorKey: "name" },
+      { header: "Email", accessorKey: "email" },
+      { header: "Block", accessorKey: "block" },
+      {
+        header: "Temp Password", accessorKey: "id",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
             <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button 
-              onClick={() => copyToClipboard(row.id)}
-              className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all"
-            >
+            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
-        ) 
+        ),
+      },
+      {
+        header: "Action", accessorKey: "id",
+        cell: (row) => (
+          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Warden">
+            <Trash2 size={16} />
+          </button>
+        ),
       },
     ],
-    'chief-warden': [
-      { header: 'ID', accessorKey: 'id' },
-      { header: 'Name', accessorKey: 'name' },
-      { header: 'Email', accessorKey: 'email' },
-      { header: 'Department', accessorKey: 'department' },
-      { 
-        header: 'Temp Password', 
-        accessorKey: 'id', 
+    "chief-warden": [
+      { header: "ID", accessorKey: "id" },
+      { header: "Name", accessorKey: "name" },
+      { header: "Email", accessorKey: "email" },
+      { header: "Department", accessorKey: "department" },
+      {
+        header: "Temp Password", accessorKey: "id",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
             <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button 
-              onClick={() => copyToClipboard(row.id)}
-              className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all"
-            >
+            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
-        ) 
+        ),
       },
-    ]
+      {
+        header: "Action", accessorKey: "id",
+        cell: (row) => (
+          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Chief Warden">
+            <Trash2 size={16} />
+          </button>
+        ),
+      },
+    ],
+    staff: [
+      { header: "Staff ID", accessorKey: "id" },
+      { header: "Name", accessorKey: "name" },
+      { header: "Contact", accessorKey: "contact" },  // lowercase — matches data key
+      { header: "Role", accessorKey: "role" },          // lowercase — matches data key
+      {
+        header: "Temp Password", accessorKey: "id",
+        cell: (row) => (
+          <div className="flex items-center gap-2 group/cell">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
+            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all" title="Copy ID">
+              <Copy size={12} className="text-muted-foreground" />
+            </button>
+          </div>
+        ),
+      },
+      {
+        header: "Action", accessorKey: "id",
+        cell: (row) => (
+          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Staff">
+            <Trash2 size={16} />
+          </button>
+        ),
+      },
+    ],
   };
 
   const roleConfigs = {
-    student: { icon: Users, label: 'Students', color: 'text-blue-500', extraLabel: 'Course / Year' },
-    warden: { icon: UserCheck, label: 'Wardens', color: 'text-emerald-500', extraLabel: 'Assigned Block' },
-    'chief-warden': { icon: ShieldCheck, label: 'Chief Warden', color: 'text-purple-500', extraLabel: 'Department' },
+    student: { icon: Users, label: "Students", color: "text-blue-500", extraLabel: "Course / Year" },
+    warden: { icon: UserCheck, label: "Wardens", color: "text-emerald-500", extraLabel: "Assigned Block" },
+    "chief-warden": { icon: ShieldCheck, label: "Chief Warden", color: "text-purple-500", extraLabel: "Department" },
+    staff: { icon: Users, label: "Staff", color: "text-orange-500", extraLabel: "Role / Dept" },
   };
 
   return (
-    <div className="space-y-6">
+    <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground mt-1">Add and manage system users across all roles.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">User Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Add and manage system users across all roles.</p>
         </div>
       </div>
 
       {/* Role Tabs */}
-      <div className="flex gap-2 p-1 bg-muted/30 rounded-xl w-fit border border-border/50">
-        {Object.entries(roleConfigs).map(([key, config]) => (
-          <button
-            key={key}
-            onClick={() => { setActiveRole(key); setMessage({type:'', text:''}); }}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeRole === key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:bg-muted/50"
-            )}
-          >
-            <config.icon size={16} className={activeRole === key ? config.color : ""} />
-            {config.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
+        <div className="grid grid-cols-4 sm:flex gap-1.5 p-1 bg-muted/30 rounded-xl w-full sm:w-fit border border-border/50">
+          {Object.entries(roleConfigs).map(([key, config]) => (
+            <button
+              key={key}
+              onClick={() => { setActiveRole(key); setMessage({ type: "", text: "" }); }}
+              className={cn(
+                "flex items-center justify-center sm:justify-start gap-1.5 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all",
+                activeRole === key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <config.icon size={14} className={activeRole === key ? config.color : ""} />
+              <span>{config.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Left Panel */}
         <div className="lg:col-span-1">
           <div className="glass-card overflow-hidden">
             <div className="flex border-b border-border/50">
-              <button 
-                onClick={() => setActiveMethod('manual')}
-                className={cn("flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-all", activeMethod === 'manual' ? "bg-primary/5 text-primary border-b-2 border-primary" : "text-muted-foreground")}
+              <button
+                onClick={() => setActiveMethod("manual")}
+                className={cn(
+                  "flex-1 py-2.5 sm:py-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+                  activeMethod === "manual" ? "bg-primary/5 text-primary border-b-2 border-primary" : "text-muted-foreground",
+                )}
               >
                 Manual Add
               </button>
-              <button 
-                onClick={() => setActiveMethod('bulk')}
-                className={cn("flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-all", activeMethod === 'bulk' ? "bg-primary/5 text-primary border-b-2 border-primary" : "text-muted-foreground")}
+              <button
+                onClick={() => { setActiveMethod("bulk"); setMessage({ type: "", text: "" }); setSelectedFile(null); }}
+                className={cn(
+                  "flex-1 py-2.5 sm:py-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+                  activeMethod === "bulk" ? "bg-primary/5 text-primary border-b-2 border-primary" : "text-muted-foreground",
+                )}
               >
                 Bulk Import
               </button>
+              <button
+                onClick={() => { setActiveMethod("delete"); setMessage({ type: "", text: "" }); setSelectedFile(null); }}
+                className={cn(
+                  "flex-1 py-2.5 sm:py-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all",
+                  activeMethod === "delete" ? "bg-destructive/5 text-destructive border-b-2 border-destructive" : "text-muted-foreground",
+                )}
+              >
+                Delete
+              </button>
             </div>
 
-            <div className="p-6">
-              {activeMethod === 'manual' ? (
+            <div className="p-4 sm:p-6">
+              {activeMethod === "manual" ? (
                 <form onSubmit={handleManualAdd} className="space-y-4">
-                  <FormInput 
-                    label="Full Name" 
+                  <FormInput
+                    label="Full Name"
                     value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Enter full name"
                     required
                   />
-                  <FormInput 
-                    label="Email Address" 
-                    type="email"
+                  {/* Staff uses Contact Number, others use Email */}
+                  <FormInput
+                    label={activeRole === "staff" ? "Contact Number" : "Email Address"}
+                    type={activeRole === "staff" ? "tel" : "email"}
                     value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
-                    placeholder="name@example.com"
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder={activeRole === "staff" ? "e.g. 9876543210" : "name@example.com"}
                     required
                   />
-                  <FormInput 
-                    label={roleConfigs[activeRole].extraLabel} 
+                  <FormInput
+                    label={roleConfigs[activeRole].extraLabel}
                     value={formData.extra}
-                    onChange={e => setFormData({...formData, extra: e.target.value})}
-                    placeholder={`e.g. ${activeRole === 'student' ? 'B.Tech IT' : activeRole === 'warden' ? 'Block B' : 'Accounts'}`}
+                    onChange={(e) => setFormData({ ...formData, extra: e.target.value })}
+                    placeholder={`e.g. ${activeRole === "student" ? "B.Tech IT" : activeRole === "warden" ? "Block B" : activeRole === "staff" ? "Electrician" : "Accounts"}`}
                     required
                   />
-                  <button className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
-                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />} Generate ID & Add
+                  <button className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 text-sm">
+                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
+                    Generate ID & Add
                   </button>
                 </form>
-              ) : (
+              ) : activeMethod === "bulk" ? (
                 <div className="space-y-4">
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current.click()}
-                    className="border-2 border-dashed border-border p-8 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-muted/30 transition-all group"
+                    className={cn(
+                      "border-2 border-dashed border-border p-6 sm:p-8 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-muted/30 transition-all group",
+                      selectedFile && "border-primary/40 bg-primary/5",
+                    )}
                   >
-                    <input type="file" ref={fileInputRef} onChange={handleBulkUpload} className="hidden" accept=".xlsx,.xls,.csv" />
-                    <div className="p-3 bg-primary/10 rounded-full text-primary group-hover:scale-110 transition-transform">
-                      {isLoading ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
+                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx,.xls,.csv" />
+                    <div className={cn("p-3 rounded-full transition-transform", selectedFile ? "bg-emerald-500/10 text-emerald-600 scale-110" : "bg-primary/10 text-primary group-hover:scale-110")}>
+                      {selectedFile ? <Check size={24} /> : <Upload size={24} />}
                     </div>
-                    <p className="text-sm font-semibold">Upload Excel Dataset</p>
-                    <p className="text-xs text-muted-foreground text-center">Batch create {activeRole} IDs and profiles automatically.</p>
+                    <p className="text-sm font-semibold text-center">{selectedFile ? selectedFile.name : "Upload Excel Dataset"}</p>
+                    <p className="text-xs text-muted-foreground text-center">
+                      {selectedFile ? "File ready to import." : `Batch create ${activeRole} IDs and profiles automatically.`}
+                    </p>
                   </div>
+                  <button
+                    onClick={processBulkUpload}
+                    disabled={isLoading || !selectedFile}
+                    className={cn(
+                      "w-full py-2.5 font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm",
+                      selectedFile ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground shadow-none",
+                    )}
+                  >
+                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                    Import & Generate Accounts
+                  </button>
                   <button onClick={downloadTemplate} className="w-full py-2 border border-border text-sm font-medium rounded-lg hover:bg-muted flex items-center justify-center gap-2">
                     <Download size={16} /> Download CSV Template
                   </button>
                 </div>
+              ) : (
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
+                    <button
+                      onClick={() => { setDeleteTab("manual"); setMessage({ type: "", text: "" }); }}
+                      className={cn("flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-all", deleteTab === "manual" ? "bg-background text-destructive shadow-sm" : "text-muted-foreground")}
+                    >
+                      Manual
+                    </button>
+                    <button
+                      onClick={() => { setDeleteTab("bulk"); setMessage({ type: "", text: "" }); setSelectedFile(null); }}
+                      className={cn("flex-1 py-2 text-[10px] font-bold uppercase rounded-lg transition-all", deleteTab === "bulk" ? "bg-background text-destructive shadow-sm" : "text-muted-foreground")}
+                    >
+                      Bulk
+                    </button>
+                  </div>
+
+                  {deleteTab === "manual" ? (
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder={`Search ${activeRole} name/ID...`}
+                          value={deleteSearchTerm}
+                          onChange={(e) => setDeleteSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background focus:ring-2 focus:ring-destructive/20 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        {users[activeRole].filter(
+                          (u) =>
+                            u.name.toLowerCase().includes(deleteSearchTerm.toLowerCase()) ||
+                            u.id.toLowerCase().includes(deleteSearchTerm.toLowerCase()),
+                        ).length > 0 ? (
+                          users[activeRole]
+                            .filter((u) =>
+                              u.name.toLowerCase().includes(deleteSearchTerm.toLowerCase()) ||
+                              u.id.toLowerCase().includes(deleteSearchTerm.toLowerCase()),
+                            )
+                            .map((u) => (
+                              <div key={u.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-destructive/5 transition-all group">
+                                <div>
+                                  <p className="text-xs font-bold">{u.name}</p>
+                                  <p className="text-[10px] text-muted-foreground uppercase">{u.id}</p>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all sm:opacity-0 sm:group-hover:opacity-100"
+                                >
+                                  <Check size={16} />
+                                </button>
+                              </div>
+                            ))
+                        ) : (
+                          <p className="text-center py-8 text-[10px] text-muted-foreground uppercase tracking-widest">No users found</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div
+                        onClick={() => fileInputRef.current.click()}
+                        className={cn(
+                          "border-2 border-dashed border-border p-6 sm:p-8 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-destructive/5 hover:border-destructive/50 transition-all group",
+                          selectedFile && "border-destructive/40 bg-destructive/5",
+                        )}
+                      >
+                        <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".xlsx,.xls,.csv" />
+                        <div className={cn("p-3 rounded-full transition-transform", selectedFile ? "bg-destructive/10 text-destructive scale-110" : "bg-destructive/10 text-destructive group-hover:scale-110")}>
+                          {selectedFile ? <Check size={24} /> : <Trash2 size={24} />}
+                        </div>
+                        <p className="text-sm font-semibold text-center">{selectedFile ? selectedFile.name : `Bulk Delete ${activeRole}s`}</p>
+                        <p className="text-xs text-muted-foreground text-center">Upload Excel with User IDs to remove accounts in batch.</p>
+                      </div>
+                      <button
+                        onClick={processBulkDelete}
+                        disabled={isLoading || !selectedFile}
+                        className={cn(
+                          "w-full py-2.5 font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm",
+                          selectedFile ? "bg-destructive text-white hover:bg-destructive/90" : "bg-muted text-muted-foreground shadow-none",
+                        )}
+                      >
+                        {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                        Run Bulk Deletion
+                      </button>
+                      <button onClick={downloadTemplate} className="w-full py-2 border border-border text-sm font-medium rounded-lg hover:bg-muted flex items-center justify-center gap-2">
+                        <Download size={16} /> Download Delete Template
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {message.text && (
-                <div className={cn(
-                  "mt-4 p-3 rounded-lg text-sm flex items-start gap-2 animate-in fade-in slide-in-from-top-2",
-                  message.type === 'success' ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-destructive/10 text-destructive border border-destructive/20"
-                )}>
-                  {message.type === 'success' ? <Check size={16} className="mt-0.5 shrink-0" /> : <AlertCircle size={16} className="mt-0.5 shrink-0" />}
-                  {message.text}
+                <div
+                  className={cn(
+                    "mt-4 p-3 rounded-lg text-sm flex items-start gap-2 animate-in fade-in slide-in-from-top-2",
+                    message.type === "success"
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                      : "bg-destructive/10 text-destructive border border-destructive/20",
+                  )}
+                >
+                  {message.type === "success" ? <Check size={16} className="mt-0.5 shrink-0" /> : <AlertCircle size={16} className="mt-0.5 shrink-0" />}
+                  <span className="break-words">{message.text}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">{roleConfigs[activeRole].label} List</h2>
-            <div className="flex items-center gap-3">
-              <button 
+        {/* Right Panel */}
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-base sm:text-lg font-semibold tracking-tight">{roleConfigs[activeRole].label} List</h2>
+            <div className="flex flex-col xs:flex-row items-stretch gap-2 w-full sm:w-auto">
+              <button
                 onClick={downloadAllCredentials}
-                className="flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-semibold hover:bg-muted transition-all"
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-background border border-border rounded-lg text-xs font-semibold hover:bg-muted transition-all whitespace-nowrap"
               >
-                <Printer size={14} /> Download Credentials List
+                <Printer size={14} /> Download Credentials
               </button>
-              <div className="relative w-48">
+              <div className="relative w-full sm:w-48">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary outline-none" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary outline-none"
+                />
               </div>
             </div>
           </div>
-          <DataTable columns={columns[activeRole]} data={users[activeRole]} />
+          <div className="overflow-x-auto rounded-xl border border-border/50">
+            <DataTable columns={columns[activeRole]} data={users[activeRole]} />
+          </div>
         </div>
       </div>
     </div>

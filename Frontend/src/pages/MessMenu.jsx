@@ -1,30 +1,37 @@
 import React, { useState } from 'react';
-import { Coffee, Edit2, Check, X, Calendar, Plus, Trash2, Save, ChevronLeft, ChevronRight, UtensilsCrossed, Moon, Sun } from 'lucide-react';
+import { Coffee, Edit2, Check, X, Calendar, Plus, Trash2, Save, UtensilsCrossed, Moon, Building2 } from 'lucide-react';
+import { getMessMenus, updateMessMenu, AVAILABLE_MESSES } from '../services/messStore';
+import { getStudentAllotment } from '../services/roomStore';
 import { cn } from '../lib/utils';
 
 export function MessMenu() {
   const role = localStorage.getItem('role');
   const isWarden = role === 'warden' || role === 'admin';
-  
+  const isStudent = role === 'student';
+
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayIndex = new Date().getDay();
   const todayName = days[todayIndex];
   const tomorrowName = days[(todayIndex + 1) % 7];
 
+  // If student, pull their actual assigned mess
+  let defaultMess = AVAILABLE_MESSES[0];
+  if (isStudent) {
+    const studentId = localStorage.getItem('userID') || 'S101';
+    const allotment = getStudentAllotment(studentId);
+    if (allotment && allotment.messId) {
+      defaultMess = allotment.messId;
+    }
+  }
+
   const [selectedDay, setSelectedDay] = useState(todayName);
+  const [selectedMess, setSelectedMess] = useState(defaultMess);
   const [activeTab, setActiveTab] = useState('today'); // 'today', 'tomorrow', 'weekly'
   const [isEditing, setIsEditing] = useState(false);
 
-  // Initial Weekly Menu Data
-  const [weeklyMenu, setWeeklyMenu] = useState({
-    Monday: { breakfast: ['Poha', 'Tea'], lunch: ['Dal', 'Rice', 'Roti'], dinner: ['Paneer', 'Chapati'] },
-    Tuesday: { breakfast: ['Idli', 'Sambar'], lunch: ['Rajma', 'Chawal'], dinner: ['Mix Veg', 'Roti'] },
-    Wednesday: { breakfast: ['Aloo Paratha', 'Curd'], lunch: ['Chole', 'Bhature'], dinner: ['Kadhai Paneer', 'Naan'] },
-    Thursday: { breakfast: ['Upma', 'Milk'], lunch: ['Kadhi', 'Rice'], dinner: ['Gobi Matar', 'Roti'] },
-    Friday: { breakfast: ['Bread Jam', 'Coffee'], lunch: ['Veg Biryani', 'Raita'], dinner: ['Aloo Gobi', 'Chapati'] },
-    Saturday: { breakfast: ['Puri Sabzi'], lunch: ['Pasta', 'Salad'], dinner: ['Fried Rice', 'Manchurian'] },
-    Sunday: { breakfast: ['Stuffed Paratha'], lunch: ['Special Thali'], dinner: ['Mushroom Masala', 'Roti'] },
-  });
+  // Persistent Weekly Menu Data for all messes
+  const [allMenus, setAllMenus] = useState(getMessMenus);
+  const weeklyMenu = allMenus[selectedMess];
 
   const [editForm, setEditForm] = useState(null);
 
@@ -61,11 +68,14 @@ export function MessMenu() {
   };
 
   const saveMenu = () => {
-    setWeeklyMenu({
-      ...weeklyMenu,
-      [selectedDay]: editForm
-    });
+    const updatedAllMenus = updateMessMenu(selectedMess, selectedDay, editForm);
+    setAllMenus(updatedAllMenus);
     setIsEditing(false);
+  };
+
+  const handleMessChange = (e) => {
+    setSelectedMess(e.target.value);
+    setIsEditing(false); // cancel edit if switching messes
   };
 
   const mealConfigs = [
@@ -75,27 +85,45 @@ export function MessMenu() {
   ];
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+    <div className="space-y-6 max-w-6xl mx-auto pt-5 pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mess Menu</h1>
-          <p className="text-muted-foreground mt-2">Set and manage the weekly meal cycle for all hostel residents.</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">Mess Menu</h1>
+            <div className="relative flex items-center bg-muted/40 backdrop-blur-md rounded-xl border border-border/50 px-3 py-1.5 shadow-sm">
+              <Building2 size={16} className="text-primary mr-2" />
+              {isStudent ? (
+                <span className="text-sm font-bold text-foreground pr-1 opacity-90">{selectedMess}</span>
+              ) : (
+                <select 
+                  value={selectedMess} 
+                  onChange={handleMessChange} 
+                  className="bg-transparent text-sm font-bold text-foreground outline-none cursor-pointer appearance-none pr-4"
+                >
+                  {AVAILABLE_MESSES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {isStudent ? 'View the daily food schedule for your allotted mess.' : 'Set and manage the weekly meal cycle for active messes.'}
+          </p>
         </div>
 
         {isWarden && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             {isEditing ? (
-              <>
-                <button onClick={() => setIsEditing(false)} className="px-5 py-2.5 border border-border text-foreground font-semibold rounded-xl hover:bg-muted transition-all flex items-center gap-2">
-                  <X size={18} /> Cancel
+              <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+                <button onClick={() => setIsEditing(false)} className="px-4 py-2.5 border border-border text-foreground font-semibold rounded-xl hover:bg-muted transition-all flex items-center justify-center gap-2 text-sm">
+                  <X size={16} /> Cancel
                 </button>
-                <button onClick={saveMenu} className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2">
-                  <Save size={18} /> Update {selectedDay} Menu
+                <button onClick={saveMenu} className="px-4 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 text-sm">
+                  <Save size={16} /> Save
                 </button>
-              </>
+              </div>
             ) : (
-              <button onClick={startEditing} className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2 scale-105 hover:scale-110 active:scale-95 duration-300">
-                <Edit2 size={20} /> Edit {selectedDay} Menu
+              <button onClick={startEditing} className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 duration-200">
+                <Edit2 size={18} /> Edit {selectedDay}
               </button>
             )}
           </div>
@@ -103,31 +131,31 @@ export function MessMenu() {
       </div>
 
       {/* Tabs Control */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex gap-2 p-1.5 bg-muted/40 backdrop-blur-md rounded-2xl border border-border/50">
-          <button 
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between overflow-hidden">
+        <div className="flex gap-2 p-1 bg-muted/40 backdrop-blur-md rounded-2xl border border-border/50 w-full sm:w-auto overflow-x-auto no-scrollbar">
+          <button
             onClick={() => handleTabChange('today')}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              "flex-1 sm:flex-none px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
               activeTab === 'today' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
             Today
           </button>
-          <button 
+          <button
             onClick={() => handleTabChange('tomorrow')}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              "flex-1 sm:flex-none px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
               activeTab === 'tomorrow' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
             Tomorrow
           </button>
           {isWarden && (
-            <button 
+            <button
               onClick={() => handleTabChange('weekly')}
               className={cn(
-                "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+                "flex-1 sm:flex-none px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
                 activeTab === 'weekly' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -135,15 +163,15 @@ export function MessMenu() {
             </button>
           )}
         </div>
-        
+
         {activeTab === 'weekly' && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 w-full sm:w-auto">
             {days.map((day) => (
-              <button 
+              <button
                 key={day}
                 onClick={() => { setSelectedDay(day); setIsEditing(false); }}
                 className={cn(
-                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
                   selectedDay === day ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
@@ -161,7 +189,7 @@ export function MessMenu() {
       )}>
         {mealConfigs.map(({ id, label, time, icon: Icon, color }) => {
           const items = isEditing ? editForm[id] : weeklyMenu[selectedDay][id];
-          
+
           return (
             <div key={id} className={cn(
               "glass-card overflow-hidden group border border-border/50 shadow-sm hover:shadow-xl transition-all duration-500",
@@ -189,26 +217,26 @@ export function MessMenu() {
               </div>
 
               {/* Items List */}
-              <div className="p-6 space-y-4 min-h-[250px]">
+              <div className="p-6 space-y-4 min-h-[auto]">
                 {items.length === 0 && !isEditing && (
                   <div className="flex flex-col items-center justify-center h-48 text-muted-foreground/40">
                     <UtensilsCrossed size={32} strokeWidth={1.5} />
                     <p className="text-xs font-medium mt-3 italic">Empty Menu</p>
                   </div>
                 )}
-                
+
                 {items.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 group/item">
                     {isEditing ? (
                       <div className="flex-1 flex items-center gap-2 animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={item}
                           onChange={(e) => handleItemChange(id, idx, e.target.value)}
                           placeholder="Ex: Dal Makhani"
-                          className="flex-1 h-10 px-3 bg-muted/30 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/40 outline-none transition-all"
+                          className="flex-1 h-10 px-3 bg-muted/30 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/40 outline-none transition-all w-full"
                         />
-                        <button onClick={() => handleRemoveItem(id, idx)} className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg transition-all opacity-0 group-hover/item:opacity-100">
+                        <button onClick={() => handleRemoveItem(id, idx)} className="h-10 w-10 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg transition-all sm:opacity-0 sm:group-hover/item:opacity-100 flex items-center justify-center mb-0">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -224,7 +252,7 @@ export function MessMenu() {
                 {isEditing && items.length === 0 && (
                   <div className="h-32 flex items-center justify-center border-2 border-dashed border-border/60 rounded-xl">
                     <button onClick={() => handleAddItem(id)} className="text-xs font-bold text-muted-foreground hover:text-primary transition-all flex items-center gap-2">
-                       <Plus size={14} /> Add First Item
+                      <Plus size={14} /> Add First Item
                     </button>
                   </div>
                 )}
@@ -237,10 +265,10 @@ export function MessMenu() {
       {isWarden && isEditing && (
         <div className="p-5 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-2xl text-xs flex items-center gap-4 animate-in slide-in-from-bottom-2 duration-500">
           <div className="p-2 bg-amber-500/20 rounded-full shrink-0">
-             <Calendar size={16} />
+            <Calendar size={16} />
           </div>
           <p className="font-semibold leading-relaxed">
-            Note: You are currently modifying the menu for <strong>{selectedDay}</strong>. Make sure the items are verified before saving. 
+            Note: You are currently modifying the menu for <strong>{selectedMess}</strong> on <strong>{selectedDay}</strong>. Make sure the items are verified before saving.
             The updated menu will be reflected on all student dashboards instantly.
           </p>
         </div>

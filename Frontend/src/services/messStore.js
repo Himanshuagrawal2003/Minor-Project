@@ -1,4 +1,6 @@
 // messStore.js — frontend-only shared store for multiple mess menus using localStorage
+import { updateAllotmentsMessId } from './roomStore';
+
 
 const STORAGE_KEY = 'hostel_mess_menus';
 
@@ -37,6 +39,29 @@ export function saveMessMenus(menus) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(menus));
 }
 
+export function getAvailableMesses() {
+  const menus = getMessMenus();
+  return Object.keys(menus);
+}
+
+export function addMess(messName) {
+  const menus = getMessMenus();
+  if (menus[messName]) return { success: false, message: 'Mess already exists' };
+  
+  menus[messName] = JSON.parse(JSON.stringify(DEFAULT_MENU));
+  saveMessMenus(menus);
+  return { success: true, menus };
+}
+
+export function deleteMess(messId) {
+  const menus = getMessMenus();
+  if (!menus[messId]) return { success: false, message: 'Mess not found' };
+  // Keep at least one mess if possible, or handle empty state in UI
+  delete menus[messId];
+  saveMessMenus(menus);
+  return { success: true, menus };
+}
+
 export function updateMessMenu(messId, day, newMenuData) {
   const current = getMessMenus();
   if (current[messId]) {
@@ -46,4 +71,21 @@ export function updateMessMenu(messId, day, newMenuData) {
   return current;
 }
 
-export const AVAILABLE_MESSES = ['Mess-1', 'Mess-2'];
+export function renameMess(oldId, newName) {
+  const menus = getMessMenus();
+  if (!menus[oldId]) return { success: false, message: 'Mess not found' };
+  if (menus[newName]) return { success: false, message: 'New mess name already exists' };
+  
+  // 1. Copy menu to new name
+  menus[newName] = menus[oldId];
+  // 2. Delete old name
+  delete menus[oldId];
+  // 3. Save menus
+  saveMessMenus(menus);
+  // 4. Update all student allotments in roomStore
+  updateAllotmentsMessId(oldId, newName);
+  
+  return { success: true, menus };
+}
+
+

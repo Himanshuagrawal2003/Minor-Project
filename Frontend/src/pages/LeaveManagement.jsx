@@ -70,7 +70,7 @@ export function LeaveManagement() {
            <select 
              value={filterStatus} 
              onChange={(e) => setFilterStatus(e.target.value)}
-             className="w-full md:w-40 h-[42px] px-3 rounded-xl border border-border bg-background outline-none text-sm font-medium font-bold text-primary cursor-pointer"
+             className="w-full md:w-40 h-[42px] px-3 rounded-xl border border-border bg-background outline-none text-sm font-bold text-primary cursor-pointer"
            >
              <option value="All">All Statuses</option>
              <option value="Pending">Pending</option>

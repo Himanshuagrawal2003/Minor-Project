@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { FormInput } from '../components/FormInput';
 import { ShieldCheck, User, UserCheck, Star, Wrench, Building2, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -177,7 +177,7 @@ export function Login() {
                   <input type="checkbox" className={cn("rounded border-input focus:ring-opacity-50", `text-${activeRoleConfig?.color.split('-')[1]}-500`, `focus:ring-${activeRoleConfig?.color.split('-')[1]}-500`)} />
                   <span className="text-muted-foreground select-none">Remember me</span>
                 </label>
-                <a href="#" className={cn("font-medium hover:underline", activeRoleConfig?.color)}>Forgot password?</a>
+                <Link to="/forgot-password" className={cn("font-medium hover:underline", activeRoleConfig?.color)}>Forgot password?</Link>
               </div>
 
               <button 

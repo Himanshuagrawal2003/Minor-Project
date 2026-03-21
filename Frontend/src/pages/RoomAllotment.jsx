@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { BedDouble, Users, UserPlus, Search, Filter, FileSpreadsheet, Upload, Download, Check, AlertCircle, Loader2, List, Trash2, Calendar, Hash, Plus } from 'lucide-react';
+import { BedDouble, Users, UserPlus, Search, Filter, FileSpreadsheet, Upload, Download, Check, AlertCircle, Loader2, List, Trash2, Calendar, Hash, Plus, Edit2, X } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { mockStudents, mockRooms, initialAllotments } from '../data/mockData';
-import { getAllotments, saveAllotments, addAllotment, removeAllotment } from '../services/roomStore';
-import { AVAILABLE_MESSES } from '../services/messStore';
+import { getAllotments, saveAllotments, addAllotment, removeAllotment, updateAllotment } from '../services/roomStore';
+import { getAvailableMesses } from '../services/messStore';
 import { cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
 
@@ -18,7 +18,8 @@ export function RoomAllotment() {
   
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
-  const [selectedMess, setSelectedMess] = useState(AVAILABLE_MESSES[0]);
+  const [availableMesses, setAvailableMesses] = useState(getAvailableMesses());
+  const [selectedMess, setSelectedMess] = useState(availableMesses[0]);
   const [capacityFilter, setCapacityFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'bulk'
   const [checkoutTab, setCheckoutTab] = useState('manual'); // 'manual' or 'bulk'
@@ -26,7 +27,9 @@ export function RoomAllotment() {
   const [uploadError, setUploadError] = useState(null);
   const [uploadSuccess, setUploadSuccess] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [editingAllotment, setEditingAllotment] = useState(null);
   const fileInputRef = useRef(null);
+
 
   const handleManualAllot = (e) => {
     e.preventDefault();
@@ -99,7 +102,7 @@ export function RoomAllotment() {
                   id: `AL-B${Date.now()}-${index}`,
                   student,
                   room,
-                  messId: row.MessID || row['Mess ID'] || AVAILABLE_MESSES[0],
+                  messId: row.MessID || row['Mess ID'] || availableMesses[0],
                   date: new Date().toISOString().split('T')[0],
                   status: 'Active'
                 });
@@ -193,7 +196,16 @@ export function RoomAllotment() {
     }
   };
 
+  const handleUpdateMess = (id, newMessId) => {
+    const updated = updateAllotment(id, { messId: newMessId });
+    setAllotments(updated);
+    setEditingAllotment(null);
+    setUploadSuccess('Mess re-allotted successfully!');
+    setTimeout(() => setUploadSuccess(null), 3000);
+  };
+
   const downloadAllotments = () => {
+
     const data = allotments.map(a => ({
       'Allotment ID': a.id,
       'Student ID': a.student?.id,
@@ -259,16 +271,26 @@ export function RoomAllotment() {
       header: 'Action', 
       accessorKey: 'id',
       cell: (row) => (
-        <button 
-          onClick={() => handleDeleteAllotment(row.id)}
-          className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
-          title="Check Out Student"
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={() => setEditingAllotment(row)}
+            className="p-2 text-amber-600 hover:bg-amber-600/10 rounded-lg transition-all"
+            title="Edit Mess"
+          >
+            <Edit2 size={16} />
+          </button>
+          <button 
+            onClick={() => handleDeleteAllotment(row.id)}
+            className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+            title="Check Out Student"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       )
     },
   ];
+
 
   const availableStudents = mockStudents.filter(
     (student) => !allotments.some((a) => a.student?.id === student.id)
@@ -429,7 +451,7 @@ export function RoomAllotment() {
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Assign Mess</label>
                       <select className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium" value={selectedMess} onChange={(e) => setSelectedMess(e.target.value)} required>
-                        {AVAILABLE_MESSES.map(m => <option key={m} value={m}>{m}</option>)}
+                        {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </div>
                     
@@ -641,6 +663,49 @@ export function RoomAllotment() {
           </div>
         </div>
       )}
+      {/* Edit Allotment Modal */}
+      {editingAllotment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-background border border-border rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Re-allot Mess</h2>
+              <button onClick={() => setEditingAllotment(null)} className="p-2 hover:bg-muted rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <p className="font-bold">{editingAllotment.student?.name}</p>
+                  <p className="text-xs text-muted-foreground">{editingAllotment.student?.id} • Room {editingAllotment.room?.number}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Select New Mess</label>
+                <select 
+                  className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all font-medium" 
+                  defaultValue={editingAllotment.messId}
+                  onChange={(e) => handleUpdateMess(editingAllotment.id, e.target.value)}
+                >
+                  {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <p className="text-[10px] text-center text-muted-foreground italic">
+                  Note: Updating the mess will take effect immediately for the student.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

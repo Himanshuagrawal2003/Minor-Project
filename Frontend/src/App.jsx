@@ -3,6 +3,7 @@ import { DashboardLayout } from './layout/DashboardLayout';
 
 // Auth Pages
 import { Login } from './pages/Login';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { AdminLogin } from './pages/AdminLogin';
 import { StudentLogin } from './pages/StudentLogin';
 import { WardenLogin } from './pages/WardenLogin';
@@ -36,6 +37,7 @@ function App() {
       <Routes>
         {/* Root Route - Unified Login */}
         <Route path="/" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Legacy Custom Auth Routes - Kept for compatibility if they bookmark them */}
         <Route path="/admin" element={<AdminLogin />} />

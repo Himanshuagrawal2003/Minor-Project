@@ -60,3 +60,37 @@ export function getStudentAllotment(studentId) {
   const current = getAllotments();
   return current.find(a => a.student?.id === studentId) || null;
 }
+
+export function updateAllotment(id, updatedData) {
+  const current = getAllotments();
+  const index = current.findIndex(a => a.id === id);
+  if (index !== -1) {
+    current[index] = { ...current[index], ...updatedData };
+    saveAllotments(current);
+  }
+  return current;
+}
+
+export function updateStudentMess(studentId, newMessId) {
+  const current = getAllotments();
+  const index = current.findIndex(a => a.student?.id === studentId);
+  if (index !== -1) {
+    current[index].messId = newMessId;
+    saveAllotments(current);
+  }
+  return current;
+}
+
+export function updateAllotmentsMessId(oldMessId, newMessId) {
+  const current = getAllotments();
+  let changed = false;
+  current.forEach(a => {
+    if (a.messId === oldMessId) {
+      a.messId = newMessId;
+      changed = true;
+    }
+  });
+  if (changed) saveAllotments(current);
+  return current;
+}
+

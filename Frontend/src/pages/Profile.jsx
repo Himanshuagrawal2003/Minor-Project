@@ -7,6 +7,8 @@ import { DashboardCard } from '../components/DashboardCard';
 export function Profile() {
   const role = localStorage.getItem('role') || 'student';
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   
   // Dummy data based on role
   const [profileData, setProfileData] = useState({
@@ -175,10 +177,62 @@ export function Profile() {
                 <h4 className="font-medium">Account Password</h4>
                 <p className="text-sm text-muted-foreground mt-1">Last changed 3 months ago</p>
               </div>
-              <button className="px-4 py-2 bg-background border border-border hover:bg-muted font-medium rounded-lg transition-colors text-sm">
-                Change Password
-              </button>
+              {!isChangingPassword && (
+                <button 
+                  onClick={() => setIsChangingPassword(true)}
+                  className="px-4 py-2 bg-background border border-border hover:bg-muted font-medium rounded-lg transition-colors text-sm"
+                >
+                  Change Password
+                </button>
+              )}
             </div>
+
+            {isChangingPassword && (
+              <div className="mt-4 p-5 rounded-xl border border-border/50 bg-background/50 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <FormInput
+                  label="Current Password"
+                  type="password"
+                  value={passwords.current}
+                  onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                  required
+                />
+                <FormInput
+                  label="New Password"
+                  type="password"
+                  value={passwords.new}
+                  onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                  required
+                />
+                <FormInput
+                  label="Confirm New Password"
+                  type="password"
+                  value={passwords.confirm}
+                  onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                  required
+                />
+                <div className="flex items-center gap-3 pt-2">
+                  <button 
+                    onClick={() => {
+                        setIsChangingPassword(false);
+                        setPasswords({ current: '', new: '', confirm: '' });
+                    }}
+                    className="px-4 py-2 border border-border flex items-center gap-2 rounded-lg hover:bg-muted transition-all text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => {
+                        setIsChangingPassword(false);
+                        setPasswords({ current: '', new: '', confirm: '' });
+                        alert("Password updated successfully!");
+                    }}
+                    className="px-4 py-2 bg-primary text-primary-foreground flex items-center gap-2 rounded-lg hover:bg-primary/90 transition-all shadow-sm text-sm font-medium"
+                  >
+                    Update Password
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           
         </div>

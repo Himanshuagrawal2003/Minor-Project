@@ -162,7 +162,7 @@ export function MessMenu() {
   ];
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+     <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-2">
         <div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">

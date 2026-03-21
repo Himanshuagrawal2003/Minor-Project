@@ -53,13 +53,11 @@ export function LeaveRequest() {
   };
 
   return (
-    <div className="space-y-8 pt-5 pb-12 w-full max-w-5xl mx-auto">
+    <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-2">
-            <CalendarDays /> Leave & No Dues
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">Leave & No Due</h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">Apply for temporary leaves or permanent checkouts.</p>
         </div>
         

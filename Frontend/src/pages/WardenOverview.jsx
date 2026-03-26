@@ -1,31 +1,44 @@
-import React, { useState } from 'react';
-import { Users, Building2, Activity, MessageSquare, AlertTriangle, Search, TrendingUp, CheckCircle, ShieldAlert } from 'lucide-react';
-import { getUsers } from '../services/userStore';
+import React, { useState, useEffect } from 'react';
+import { Users, Building2, Activity, MessageSquare, AlertTriangle, Search, TrendingUp, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 import { cn } from '../lib/utils';
 
 export function WardenOverview() {
-  const users = getUsers();
-  const wardens = users.warden || [];
-  
+  const [wardens, setWardens] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const fetchWardens = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/users/warden-performance');
+      setWardens(res.users || []);
+    } catch (err) {
+      console.error("Failed to fetch warden performance", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWardens();
+  }, []);
+
   const filteredWardens = wardens.filter(w => 
-    w.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.userID?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.extra?.toLowerCase().includes(searchTerm.toLowerCase())
+    (w.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (w.customId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (w.block || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Deterministic mock data generator based on Warden ID for UI preview purposes
-  const getMockStats = (wardenId) => {
-    const seed = wardenId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return {
-      activeComplaints: (seed % 8) + 1,
-      resolvedComplaints: (seed % 40) + 20,
-      activeEmergencies: seed % 3 === 0 ? 1 : 0,
-      studentSatisfaction: 85 + (seed % 15),
-      pendingLeaves: (seed % 5),
-    };
-  };
+  // Performance stats come from backend aggregation per block
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-12 w-full max-w-7xl mx-auto">
@@ -59,7 +72,7 @@ export function WardenOverview() {
             <div>
                <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Total Pending Actions</p>
                <p className="text-2xl font-black text-foreground">
-                 {wardens.reduce((acc, w) => acc + getMockStats(w.userID).activeComplaints + getMockStats(w.userID).pendingLeaves, 0)}
+                 {wardens.reduce((acc, w) => acc + (w.stats?.activeComplaints || 0) + (w.stats?.pendingLeaves || 0), 0)}
                </p>
             </div>
             <Activity className="text-amber-500/20" size={32} />
@@ -68,7 +81,7 @@ export function WardenOverview() {
             <div>
                <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Block Emergencies</p>
                <p className="text-2xl font-black text-foreground">
-                 {wardens.reduce((acc, w) => acc + getMockStats(w.userID).activeEmergencies, 0)}
+                 {wardens.reduce((acc, w) => acc + (w.stats?.activeEmergencies || 0), 0)}
                </p>
             </div>
             <AlertTriangle className="text-destructive/20" size={32} />
@@ -91,21 +104,21 @@ export function WardenOverview() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
          {filteredWardens.length > 0 ? (
             filteredWardens.map(warden => {
-               const stats = getMockStats(warden.userID);
+               const stats = warden.stats || { activeComplaints: 0, resolvedComplaints: 0, activeEmergencies: 0, studentSatisfaction: 100, pendingLeaves: 0 };
                
                return (
                   <div key={warden._id} className="glass-card p-0 overflow-hidden border border-border/50 group hover:shadow-xl transition-all duration-300">
                      <div className="p-6 bg-gradient-to-br from-muted/50 to-transparent border-b border-border/50">
                         <div className="flex justify-between items-start mb-4">
                            <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shadow-inner">
-                              {warden.name.charAt(0)}
+                              {(warden.name || 'W').charAt(0)}
                            </div>
                            <span className="px-3 py-1 bg-background border border-border rounded-full text-[10px] font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5 shadow-sm">
-                              <Building2 size={12} className="text-primary" /> {warden.extra || 'Unassigned Block'}
+                              <Building2 size={12} className="text-primary" /> {warden.block || 'Unassigned Block'}
                            </span>
                         </div>
                         <h3 className="text-lg font-bold text-foreground truncate">{warden.name}</h3>
-                        <p className="text-xs font-semibold text-muted-foreground mt-0.5">{warden.userID} • {warden.email}</p>
+                        <p className="text-xs font-semibold text-muted-foreground mt-0.5">{warden.customId} • {warden.email}</p>
                      </div>
                      
                      <div className="p-6 space-y-5">

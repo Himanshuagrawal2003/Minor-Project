@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardCard } from '../components/DashboardCard';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { Wrench, CheckCircle, Clock, BellRing, Megaphone, Calendar, User, Eye, X, Save, Loader2 } from 'lucide-react';
-import { getNotices } from '../services/noticeStore';
-import { getComplaints, updateComplaint, STATUSES } from '../services/complaintStore';
+import { api } from '../services/api';
 import { cn } from '../lib/utils';
 
 /**
@@ -12,24 +11,57 @@ import { cn } from '../lib/utils';
  * Provides a portal for staff members to manage their assigned complaints and view notices.
  */
 export function StaffDashboard() {
-  const staffID = localStorage.getItem('userID') || 'STF001';
   const staffName = localStorage.getItem('name') || 'Staff Member';
   
-  const [notices] = useState(() => 
-    getNotices().filter(n => n.targetRoles.includes('all') || n.targetRoles.includes('staff'))
-  );
-  
-  const [assignedComplaints, setAssignedComplaints] = useState(() => 
-    getComplaints().filter(c => c.assignedStaffId === staffID)
-  );
-
+  const [notices, setNotices] = useState([]);
+  const [assignedComplaints, setAssignedComplaints] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isNoticesLoading, setIsNoticesLoading] = useState(true);
   const [viewingComplaint, setViewingComplaint] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editFields, setEditFields] = useState({ status: '', remarks: '' });
 
-  const loadComplaints = () => {
-    setAssignedComplaints(getComplaints().filter(c => c.assignedStaffId === staffID));
+  const STATUSES = ['Pending', 'In Progress', 'Resolved', 'Rejected'];
+
+  const loadComplaints = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.get('/complaints');
+      // Ensure each item has an 'id' for the DataTable accessor
+      const formatted = data.map(c => ({
+        ...c,
+        id: c._id ? c._id.substring(c._id.length - 8) : 'N/A'
+      }));
+      setAssignedComplaints(formatted);
+    } catch (err) {
+      console.error("Failed to load staff complaints", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const loadNotices = async () => {
+    try {
+      setIsNoticesLoading(true);
+      const data = await api.get('/notices');
+      // Filter notices for staff or all
+      const staffNotices = data.filter(n => 
+        (n.targetRoles || []).includes('staff') || 
+        (n.targetRoles || []).includes('all') ||
+        (n.targetRoles || []).length === 0
+      );
+      setNotices(staffNotices);
+    } catch (err) {
+      console.error("Failed to load staff notices", err);
+    } finally {
+      setIsNoticesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadComplaints();
+    loadNotices();
+  }, []);
 
   const openManage = (complaint) => {
     setViewingComplaint(complaint);
@@ -39,14 +71,18 @@ export function StaffDashboard() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      updateComplaint(viewingComplaint.id, editFields);
+    try {
+      await api.patch(`/complaints/${viewingComplaint._id}`, editFields);
       loadComplaints();
       setViewingComplaint(null);
+    } catch (err) {
+      console.error("Failed to update complaint", err);
+      alert("Failed to update complaint: " + (err.message || err));
+    } finally {
       setIsSaving(false);
-    }, 600);
+    }
   };
 
   const taskColumns = [
@@ -119,7 +155,12 @@ export function StaffDashboard() {
             <h2 className="text-lg font-semibold tracking-tight">Current Assignments</h2>
           </div>
           <DataTable columns={taskColumns} data={assignedComplaints} />
-          {assignedComplaints.length === 0 && (
+          {isLoading && (
+            <div className="flex justify-center py-10">
+              <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+          )}
+          {!isLoading && assignedComplaints.length === 0 && (
              <div className="glass-card py-16 text-center flex flex-col items-center gap-3">
                 <CheckCircle size={32} className="text-emerald-500 opacity-20" />
                 <p className="text-sm text-muted-foreground italic">No complaints currently assigned to you.</p>
@@ -134,32 +175,34 @@ export function StaffDashboard() {
           </div>
           
           <div className="glass-card divide-y divide-border/50 max-h-[600px] overflow-y-auto">
-            {notices.length > 0 ? (
+            {isNoticesLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="animate-spin text-primary" size={24} />
+              </div>
+            ) : notices.length > 0 ? (
               notices.map((notice) => (
                 <div key={notice._id} className="p-4 hover:bg-muted/30 transition-colors">
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-1">
+                    <h3 className="font-bold text-sm text-primary leading-tight">{notice.title}</h3>
+                    <span className="text-[10px] text-muted-foreground">{new Date(notice.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-xs text-foreground/80 line-clamp-3 mb-3 leading-relaxed">
+                    {notice.content}
+                  </p>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/20">
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                        By {notice.author?.name || "Admin"}
+                      </span>
+                    </div>
                     <span className={cn(
                       "px-1.5 py-0.5 rounded-[4px] text-[8px] font-bold uppercase tracking-tighter",
-                      notice.priority === 'high' ? "bg-destructive/10 text-destructive border border-destructive/20" :
-                      notice.priority === 'medium' ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" :
+                      notice.priority === 'High' || notice.priority === 'Critical' ? "bg-destructive/10 text-destructive border border-destructive/20" :
+                      notice.priority === 'Medium' ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" :
                       "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                     )}>
                       {notice.priority}
                     </span>
-                  </div>
-                  <h3 className="font-bold text-sm mb-1 leading-tight">{notice.title}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-3 mb-3 leading-relaxed">
-                    {notice.content}
-                  </p>
-                  <div className="flex items-center justify-between text-[9px] text-muted-foreground/50 pt-2 border-t border-border/20">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={10} />
-                      <span>{new Date(notice.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <User size={10} />
-                      <span>{notice.author?.name || "Admin"}</span>
-                    </div>
                   </div>
                 </div>
               ))

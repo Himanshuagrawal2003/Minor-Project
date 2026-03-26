@@ -1,19 +1,36 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Clock, Activity, CheckCircle, Plus, Info, PhoneCall } from 'lucide-react';
-import { getEmergencies, createEmergency, EMERGENCY_TYPES } from '../services/emergencyStore';
-import { getStudentAllotment } from '../services/roomStore';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Clock, Activity, CheckCircle, Plus, Info, PhoneCall, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 import { StatusBadge } from '../components/StatusBadge';
 import { cn } from '../lib/utils';
 
 export function Emergency() {
-  const studentId = localStorage.getItem('userID') || 'S101';
-  const allotment = getStudentAllotment(studentId);
-  const myRoom = allotment?.room?.number || 'Not Allotted';
-  const myBlock = allotment ? `Block ${allotment.room?.number?.charAt(0)}` : 'N/A';
+  const EMERGENCY_TYPES = ['Medical', 'Security', 'Fire', 'Emergency Maintenance', 'Other'];
+  const [emergencies, setEmergencies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
 
-  const [emergencies, setEmergencies] = useState(
-    getEmergencies().filter(e => e.studentId === studentId)
-  );
+  const loadEmergencies = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.get('/emergencies');
+      setEmergencies(data);
+      
+      const dash = await api.get('/dashboard');
+      setDashboardData(dash);
+    } catch (err) {
+      console.error("Failed to load emergencies", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmergencies();
+  }, []);
+
+  const myRoom = dashboardData?.studentStats?.room || 'Not Allotted';
+  const myBlock = dashboardData?.studentStats?.block || 'N/A';
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [type, setType] = useState('Medical');
@@ -21,16 +38,19 @@ export function Emergency() {
 
   const activeEmergencies = emergencies.filter(e => e.status !== 'Resolved' && e.status !== 'False Alarm');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!description.trim()) return;
 
-    const updatedList = createEmergency(studentId, type, description);
-    setEmergencies(updatedList.filter(em => em.studentId === studentId));
-    
-    setType('Medical');
-    setDescription('');
-    setIsFormOpen(false);
+    try {
+      await api.post('/emergencies', { type, description });
+      loadEmergencies();
+      setType('Medical');
+      setDescription('');
+      setIsFormOpen(false);
+    } catch (err) {
+      alert("Failed to send alert");
+    }
   };
 
   return (
@@ -126,14 +146,18 @@ export function Emergency() {
             </h3>
             
             <div className="space-y-4">
-               {emergencies.length === 0 ? (
+               {isLoading ? (
+                  <div className="p-12 flex justify-center">
+                     <Loader2 size={32} className="animate-spin text-primary" />
+                  </div>
+               ) : emergencies.length === 0 ? (
                   <div className="p-10 text-center rounded-2xl border-2 border-dashed border-border/40 flex flex-col items-center gap-3">
                      <CheckCircle size={32} className="text-emerald-500/50" />
                      <p className="text-sm font-medium text-muted-foreground">You have no reported emergencies. Stay safe!</p>
                   </div>
                ) : (
                   emergencies.map((em) => (
-                     <div key={em.id} className={cn(
+                     <div key={em._id} className={cn(
                         "p-5 rounded-2xl border transition-all relative overflow-hidden",
                         em.status === 'Resolved' || em.status === 'False Alarm' ? "bg-muted/10 border-border/50" : "bg-destructive/5 border-destructive/30 shadow-sm"
                      )}>
@@ -152,7 +176,7 @@ export function Emergency() {
                                  )}>
                                     {em.type}
                                  </span>
-                                 <span className="text-[10px] text-muted-foreground font-medium">#{em.id}</span>
+                                 <span className="text-[10px] text-muted-foreground font-medium">#{em._id.substring(em._id.length - 6)}</span>
                               </div>
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                  <Clock size={10} /> Reported {new Date(em.createdAt).toLocaleString()}

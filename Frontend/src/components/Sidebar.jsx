@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   ClipboardList,
   BedDouble,
-  BellRing
+  BellRing,
+  UtensilsCrossed
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -38,9 +39,8 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
         return [
           ...commonLinks,
           { name: 'Complaints', path: '/warden/complaints', icon: MessageSquare },
-          { name: 'Leave Approvals', path: '/warden/leave', icon: CalendarDays },
-          { name: 'Room Allotment', path: '/warden/room-allotment', icon: BedDouble },
           { name: 'Mess Menu', path: '/warden/mess-menu', icon: Coffee },
+          { name: 'Room Allotment', path: '/warden/room-allotment', icon: BedDouble },
           { name: 'Notice Board', path: '/warden/notices', icon: BellRing },
           { name: 'Emergencies', path: '/warden/emergencies', icon: AlertTriangle, danger: true },
         ];
@@ -53,7 +53,6 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
           ...commonLinks,
           { name: 'Escalations', path: '/chief-warden/escalations', icon: AlertTriangle },
           { name: 'Warden Overview', path: '/chief-warden/wardens', icon: Users },
-          { name: 'Leave Approvals', path: '/chief-warden/leave', icon: CalendarDays },
           { name: 'Room Allotment', path: '/chief-warden/room-allotment', icon: BedDouble },
           { name: 'Notice Board', path: '/chief-warden/notices', icon: BellRing },
           { name: 'Emergencies', path: '/chief-warden/emergencies', icon: AlertTriangle, danger: true },
@@ -62,7 +61,7 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
         return [
           ...commonLinks,
           { name: 'User Management', path: '/admin/users', icon: Users },
-          { name: 'Mess Management', path: '/admin/mess-menu', icon: Coffee },
+          { name: 'Mess Menu', path: '/admin/mess-menu', icon: Coffee },
           { name: 'Complaints', path: '/admin/complaints', icon: MessageSquare },
           { name: 'Leave Approvals', path: '/admin/leave', icon: CalendarDays },
           { name: 'Room Allotment', path: '/admin/room-allotment', icon: BedDouble },

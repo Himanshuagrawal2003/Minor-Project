@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   UserPlus,
@@ -18,32 +19,42 @@ import {
   ExternalLink,
   Printer,
   Trash2,
+  BedDouble,
 } from "lucide-react";
 import { DataTable } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
 import { FormInput } from "../components/FormInput";
 import { cn } from "../lib/utils";
 import * as XLSX from "xlsx";
+import { api } from "../services/api";
 
 export function UserManagement() {
+  const navigate = useNavigate();
   const [activeRole, setActiveRole] = useState("student");
   const [activeMethod, setActiveMethod] = useState("manual");
 
   const [users, setUsers] = useState({
-    student: [
-      { id: "S101", name: "Rahul Sharma", email: "rahul@example.com", course: "B.Tech CSE", year: "2nd" },
-      { id: "S102", name: "Priya Patel", email: "priya@example.com", course: "B.Arch", year: "1st" },
-    ],
-    warden: [
-      { id: "W201", name: "Amit Kumar", email: "amit@hostel.com", block: "Block A", experience: "5 Years" },
-    ],
-    "chief-warden": [
-      { id: "CW301", name: "Dr. S.K. Verma", email: "verma@hostel.com", department: "Administration" },
-    ],
-    staff: [
-      { id: "ST101", name: "Aditya", contact: "8843560943", role: "Plumber" },
-    ],
+    student: [],
+    warden: [],
+    "chief-warden": [],
+    staff: [],
   });
+
+  // Fetch users from backend
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        const res = await api.get(`/users?role=${activeRole}`);
+        setUsers(prev => ({ ...prev, [activeRole]: res.users }));
+      } catch (err) {
+        setMessage({ type: "error", text: "Failed to fetch users." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUsers();
+  }, [activeRole]);
 
   const [formData, setFormData] = useState({ name: "", email: "", extra: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -75,33 +86,36 @@ export function UserManagement() {
     }
   };
 
-  const handleManualAdd = (e) => {
+  const handleManualAdd = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setMessage({ type: "", text: "" });
 
-    setTimeout(() => {
-      const prefix = getIdPrefix(activeRole);
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-      const generatedId = `${prefix}${randomNum}`;
-
-      const newUser = {
-        id: generatedId,
+    try {
+      const res = await api.post("/users/create", {
         name: formData.name,
-        // staff uses contact field instead of email
-        ...(activeRole === "staff"
-          ? { contact: formData.email }
-          : { email: formData.email }),
-        [getExtraKey(activeRole)]: formData.extra,
-      };
-
-      setUsers({ ...users, [activeRole]: [newUser, ...users[activeRole]] });
-      setFormData({ name: "", email: "", extra: "" });
-      setMessage({
-        type: "success",
-        text: `Successfully generated Account for ${formData.name}. ID/Password: ${generatedId}`,
+        role: activeRole,
+        // staff uses contact, others use email
+        ...(activeRole === "staff" ? { contact: formData.email } : { email: formData.email }),
+        extra: formData.extra,
       });
+
+      if (res.success) {
+        // Refresh the list for current role
+        const freshUsers = await api.get(`/users?role=${activeRole}`);
+        setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
+        
+        setFormData({ name: "", email: "", extra: "" });
+        setMessage({
+          type: "success",
+          text: `Successfully created ${activeRole}. Temp Password: ${res.tempPassword}`,
+        });
+      }
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Failed to create user." });
+    } finally {
       setIsLoading(false);
-    }, 600);
+    }
   };
 
   const handleFileSelect = (e) => {
@@ -111,34 +125,37 @@ export function UserManagement() {
     setMessage({ type: "", text: "" });
   };
 
-  const processBulkUpload = () => {
+  const processBulkUpload = async () => {
     if (!selectedFile) return;
     setIsLoading(true);
     setMessage({ type: "", text: "" });
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const newUsers = jsonData.map((row) => ({
-          id: row.ID || row.Id || `${getIdPrefix(activeRole)}${Math.floor(1000 + Math.random() * 9000)}`,
+        const usersToCreate = jsonData.map((row) => ({
           name: row.Name || "Unknown",
           ...(activeRole === "staff"
             ? { contact: row.Contact || row.Email || "N/A" }
-            : { email: row.Email || "N/A" }),
-          [getExtraKey(activeRole)]:
-            row.Extra || row.Course || row.Block || row.Department || row.Role || "N/A",
+            : { email: row.Email || row.Id || row.ID || "N/A" }),
+          extra: row.Extra || row.Course || row.Block || row.Department || row.Role || "N/A",
         }));
 
-        setUsers({ ...users, [activeRole]: [...newUsers, ...users[activeRole]] });
-        setMessage({ type: "success", text: `Bulk uploaded ${newUsers.length} ${activeRole}s successfully!` });
+        const res = await api.post("/users/bulk", { users: usersToCreate, role: activeRole });
+        
+        // Refresh list
+        const freshUsers = await api.get(`/users?role=${activeRole}`);
+        setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
+
+        setMessage({ type: "success", text: `Bulk uploaded ${res.count} ${activeRole}s successfully!` });
         setSelectedFile(null);
       } catch (err) {
-        setMessage({ type: "error", text: "Failed to process file. Please check the format." });
+        setMessage({ type: "error", text: err.message || "Failed to process bulk upload." });
       } finally {
         setIsLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -147,42 +164,38 @@ export function UserManagement() {
     reader.readAsArrayBuffer(selectedFile);
   };
 
-  const processBulkDelete = () => {
+  const processBulkDelete = async () => {
     if (!selectedFile) return;
     setIsLoading(true);
     setMessage({ type: "", text: "" });
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        let successCount = 0;
-        let failedCount = 0;
-        const updatedRoleUsers = [...users[activeRole]];
+        const idsToDelete = jsonData.map((row) => row.ID || row.Id || row.UserID || row["User ID"]).filter(Boolean);
 
-        jsonData.forEach((row) => {
-          const userId = row.ID || row.Id || row.UserID || row["User ID"];
-          const index = updatedRoleUsers.findIndex((u) => u.id === userId);
-          if (index !== -1) { updatedRoleUsers.splice(index, 1); successCount++; }
-          else { failedCount++; }
-        });
-
-        if (successCount > 0) {
-          setUsers({ ...users, [activeRole]: updatedRoleUsers });
-          setMessage({
-            type: "success",
-            text: `Successfully deleted ${successCount} ${activeRole} accounts. ${failedCount > 0 ? `${failedCount} IDs not found.` : ""}`,
-          });
-          setSelectedFile(null);
-        } else {
-          setMessage({ type: "error", text: "No matching User IDs found in the registry." });
+        if (idsToDelete.length === 0) {
+          throw new Error("No User IDs found in the file.");
         }
+
+        const res = await api.post("/users/bulk-delete", { ids: idsToDelete });
+        
+        // Refresh list
+        const freshUsers = await api.get(`/users?role=${activeRole}`);
+        setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
+
+        setMessage({ 
+          type: "success", 
+          text: `Successfully deleted ${res.count} accounts. ${idsToDelete.length - res.count > 0 ? `${idsToDelete.length - res.count} IDs not found.` : ""}` 
+        });
+        setSelectedFile(null);
       } catch (err) {
-        setMessage({ type: "error", text: "Failed to process file. Please check the format." });
+        setMessage({ type: "error", text: err.message || "Failed to process bulk deletion." });
       } finally {
         setIsLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -191,11 +204,26 @@ export function UserManagement() {
     reader.readAsArrayBuffer(selectedFile);
   };
 
-  const handleDeleteUser = (id) => {
+  const handleDeleteUser = async (id, mId) => {
+    // Note: Backend uses mongo _id for deletion
     if (window.confirm(`Are you sure you want to delete this ${activeRole}? This action cannot be undone.`)) {
-      setUsers({ ...users, [activeRole]: users[activeRole].filter((u) => u.id !== id) });
-      setMessage({ type: "success", text: "User deleted successfully." });
-      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
+      try {
+        setIsLoading(true);
+        await api.delete(`/users/${mId}`);
+        
+        // Update local state
+        setUsers(prev => ({
+          ...prev,
+          [activeRole]: prev[activeRole].filter(u => u._id !== mId)
+        }));
+        
+        setMessage({ type: "success", text: "User deleted successfully." });
+        setTimeout(() => setMessage({ type: "", text: "" }), 3000);
+      } catch (err) {
+        setMessage({ type: "error", text: err.message || "Failed to delete user." });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -239,100 +267,113 @@ export function UserManagement() {
 
   const columns = {
     student: [
-      { header: "Student ID", accessorKey: "id" },
+      { header: "Student ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Email", accessorKey: "email" },
       { header: "Course", accessorKey: "course" },
       {
-        header: "Temp Password", accessorKey: "id",
+        header: "Temp Password", accessorKey: "customId",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
-            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all" title="Copy ID">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.customId}</code>
+            <button onClick={() => copyToClipboard(row.customId)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all" title="Copy ID">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
         ),
       },
       {
-        header: "Action", accessorKey: "id",
+        header: "Action", accessorKey: "_id",
         cell: (row) => (
-          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Student">
-            <Trash2 size={16} />
-          </button>
-        ),
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => navigate(`/admin/room-allotment?studentId=${row._id}`)}
+              className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-all" 
+              title="Allot Room"
+            >
+              <BedDouble size={16} />
+            </button>
+            <button 
+              onClick={() => handleDeleteUser(row.customId, row._id)} 
+              className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" 
+              title="Delete Student"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )
       },
     ],
     warden: [
-      { header: "Warden ID", accessorKey: "id" },
+      { header: "Warden ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Email", accessorKey: "email" },
       { header: "Block", accessorKey: "block" },
       {
-        header: "Temp Password", accessorKey: "id",
+        header: "Temp Password", accessorKey: "customId",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
-            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.customId}</code>
+            <button onClick={() => copyToClipboard(row.customId)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
         ),
       },
       {
-        header: "Action", accessorKey: "id",
+        header: "Action", accessorKey: "_id",
         cell: (row) => (
-          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Warden">
+          <button onClick={() => handleDeleteUser(row.customId, row._id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Warden">
             <Trash2 size={16} />
           </button>
         ),
       },
     ],
     "chief-warden": [
-      { header: "ID", accessorKey: "id" },
+      { header: "ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Email", accessorKey: "email" },
       { header: "Department", accessorKey: "department" },
       {
-        header: "Temp Password", accessorKey: "id",
+        header: "Temp Password", accessorKey: "customId",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
-            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.customId}</code>
+            <button onClick={() => copyToClipboard(row.customId)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
         ),
       },
       {
-        header: "Action", accessorKey: "id",
+        header: "Action", accessorKey: "_id",
         cell: (row) => (
-          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Chief Warden">
+          <button onClick={() => handleDeleteUser(row.customId, row._id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Chief Warden">
             <Trash2 size={16} />
           </button>
         ),
       },
     ],
     staff: [
-      { header: "Staff ID", accessorKey: "id" },
+      { header: "Staff ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Contact", accessorKey: "contact" },  // lowercase — matches data key
       { header: "Role", accessorKey: "role" },          // lowercase — matches data key
       {
-        header: "Temp Password", accessorKey: "id",
+        header: "Temp Password", accessorKey: "customId",
         cell: (row) => (
           <div className="flex items-center gap-2 group/cell">
-            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.id}</code>
-            <button onClick={() => copyToClipboard(row.id)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all" title="Copy ID">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{row.customId}</code>
+            <button onClick={() => copyToClipboard(row.customId)} className="p-1 opacity-0 group-hover/cell:opacity-100 hover:bg-muted rounded transition-all" title="Copy ID">
               <Copy size={12} className="text-muted-foreground" />
             </button>
           </div>
         ),
       },
       {
-        header: "Action", accessorKey: "id",
+        header: "Action", accessorKey: "_id",
         cell: (row) => (
-          <button onClick={() => handleDeleteUser(row.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Staff">
+          <button onClick={() => handleDeleteUser(row.customId, row._id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Delete Staff">
             <Trash2 size={16} />
           </button>
         ),

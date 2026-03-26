@@ -1,59 +1,111 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BedDouble, Users, UserPlus, Search, Filter, FileSpreadsheet, Upload, Download, Check, AlertCircle, Loader2, List, Trash2, Calendar, Hash, Plus, Edit2, X } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { mockStudents, mockRooms, initialAllotments } from '../data/mockData';
-import { getAllotments, saveAllotments, addAllotment, removeAllotment, updateAllotment } from '../services/roomStore';
-import { getAvailableMesses } from '../services/messStore';
+import { api } from '../services/api';
 import { cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
 
 export function RoomAllotment() {
+  const [searchParams] = useSearchParams();
+  const preSelectedId = searchParams.get('studentId');
   const role = localStorage.getItem('role');
   const [viewMode, setViewMode] = useState('list'); // 'list', 'manage', 'checkout'
   const [searchTerm, setSearchTerm] = useState('');
-  const [checkoutSearchTerm, setCheckoutSearchTerm] = useState('');
-  
-  const [allotments, setAllotments] = useState(getAllotments);
-  
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'bulk'
+  const [isLoading, setIsLoading] = useState(true);
+  const [students, setStudents] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [allotments, setAllotments] = useState([]);
+
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
-  const [availableMesses, setAvailableMesses] = useState(getAvailableMesses());
-  const [selectedMess, setSelectedMess] = useState(availableMesses[0]);
-  const [capacityFilter, setCapacityFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'bulk'
-  const [checkoutTab, setCheckoutTab] = useState('manual'); // 'manual' or 'bulk'
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState(null);
+  const [selectedBlock, setSelectedBlock] = useState('A');
+  const [selectedMess, setSelectedMess] = useState('Mess 1');
+
   const [uploadSuccess, setUploadSuccess] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [editingAllotment, setEditingAllotment] = useState(null);
+  const [checkoutSearchTerm, setCheckoutSearchTerm] = useState('');
+  const [capacityFilter, setCapacityFilter] = useState('all');
+  const [checkoutTab, setCheckoutTab] = useState('manual'); // 'manual' or 'bulk'
+
+  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
+  const [roomFormData, setRoomFormData] = useState({ number: '', block: 'A', capacity: 3, type: 'Boys' });
+
   const fileInputRef = useRef(null);
 
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/users');
+      const studentList = (res.users || []).filter(u => u.role === 'student');
+      setStudents(studentList);
 
-  const handleManualAllot = (e) => {
+      const roomRes = await api.get('/rooms');
+      const roomList = roomRes.rooms || [];
+      setRooms(roomList);
+
+      // Derive allotments from users who have a roomNumber
+      const activeAllotments = studentList.filter(s => s.roomNumber).map(s => {
+        const roomInfo = roomList.find(r => r.number === s.roomNumber);
+        return {
+          id: s._id,
+          student: { id: s.customId, name: s.name, _id: s._id },
+          room: {
+            number: s.roomNumber,
+            capacity: roomInfo?.capacity || 3,
+            block: s.block || roomInfo?.block || 'A'
+          },
+          messId: s.messId || 'None',
+          date: s.updatedAt ? new Date(s.updatedAt).toLocaleDateString() : 'Recently',
+          status: 'Active'
+        };
+      });
+      setAllotments(activeAllotments);
+    } catch (err) {
+      console.error("Failed to fetch data", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const uniqueBlocks = [...new Set(rooms.map(r => r.block))].sort();
+  const availableMesses = [...new Set(students.filter(s => s.messId).map(s => s.messId))];
+  if (availableMesses.length === 0) availableMesses.push('Mess 1', 'Mess 2', 'Mess 3');
+
+  useEffect(() => {
+    fetchData();
+    if (preSelectedId) {
+      setSelectedStudent(preSelectedId);
+      setViewMode('manage');
+    }
+  }, [preSelectedId]);
+
+  const handleManualAllot = async (e) => {
     e.preventDefault();
     if (!selectedStudent || !selectedRoom) return;
 
-    const student = mockStudents.find(s => s.id === selectedStudent);
-    const room = mockRooms.find(r => r.id === selectedRoom);
+    try {
+      await api.patch(`/users/${selectedStudent}/allot`, {
+        roomNumber: selectedRoom,
+        block: selectedBlock,
+        messId: selectedMess
+      });
 
-    const newAllotment = {
-      id: `AL00${allotments.length + 1}`,
-      student,
-      room,
-      messId: selectedMess,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Active'
-    };
-
-    const updated = addAllotment(newAllotment);
-    setAllotments(updated);
-    
-    setSelectedStudent('');
-    setSelectedRoom('');
-    setUploadSuccess('Room and Mess allotted successfully!');
-    setTimeout(() => setUploadSuccess(null), 3000);
+      setUploadSuccess('Room allotted successfully!');
+      setSelectedStudent('');
+      setSelectedRoom('');
+      fetchData();
+      setTimeout(() => setUploadSuccess(null), 3000);
+    } catch (err) {
+      setUploadError(err.message || 'Failed to allot room.');
+    }
   };
 
   const handleFileSelect = (e) => {
@@ -72,7 +124,7 @@ export function RoomAllotment() {
     setUploadSuccess(null);
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -80,54 +132,44 @@ export function RoomAllotment() {
         const worksheet = workbook.Sheets[firstSheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const newBulkAllotments = [];
+        let successCount = 0;
         let errorCount = 0;
 
-        jsonData.forEach((row, index) => {
+        for (const row of jsonData) {
           const studentId = row.StudentID || row['Student ID'];
           const roomNumber = row.RoomNumber || row['Room Number'];
+          const block = row.Block || 'A';
+          const messId = row.MessID || row['Mess ID'] || 'Mess 1';
 
-          const student = mockStudents.find(s => s.id === studentId);
-          const room = mockRooms.find(r => r.number === roomNumber);
+          const student = students.find(s => s.customId === studentId || s._id === studentId);
 
-          if (student && room) {
-            const isAlreadyAllotted = allotments.some(a => a.student?.id === student.id) || 
-                                     newBulkAllotments.some(a => a.student?.id === student.id);
-            
-            const currentOccupancy = allotments.filter(a => a.room?.id === room.id).length + 
-                                   newBulkAllotments.filter(a => a.room?.id === room.id).length;
-            
-              if (!isAlreadyAllotted && currentOccupancy < room.capacity) {
-                newBulkAllotments.push({
-                  id: `AL-B${Date.now()}-${index}`,
-                  student,
-                  room,
-                  messId: row.MessID || row['Mess ID'] || availableMesses[0],
-                  date: new Date().toISOString().split('T')[0],
-                  status: 'Active'
-                });
-              } else {
-                errorCount++;
-              }
-            } else {
+          if (student && roomNumber) {
+            try {
+              await api.patch(`/users/${student._id}/allot`, {
+                roomNumber,
+                block,
+                messId
+              });
+              successCount++;
+            } catch (err) {
               errorCount++;
             }
-          });
+          } else {
+            errorCount++;
+          }
+        }
 
-          if (newBulkAllotments.length > 0) {
-            const current = getAllotments();
-            const combined = [...newBulkAllotments, ...current];
-            saveAllotments(combined);
-            setAllotments(combined);
-            setUploadSuccess(`Successfully allotted ${newBulkAllotments.length} students. ${errorCount > 0 ? `${errorCount} entries failed validation.` : ''}`);
-            setSelectedFile(null);
+        if (successCount > 0) {
+          setUploadSuccess(`Successfully allotted ${successCount} students. ${errorCount > 0 ? `${errorCount} entries failed.` : ''}`);
+          fetchData();
         } else {
-          setUploadError('No valid allotments found in the file. Please check IDs and room capacities.');
+          setUploadError('No valid allotments processed. Please check IDs and room numbers.');
         }
       } catch (err) {
-        setUploadError('Failed to parse file. Please ensure it follows the correct format.');
+        setUploadError('Failed to parse file.');
       } finally {
         setIsUploading(false);
+        setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setTimeout(() => setUploadSuccess(null), 5000);
       }
@@ -143,7 +185,7 @@ export function RoomAllotment() {
     setUploadSuccess(null);
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -154,32 +196,37 @@ export function RoomAllotment() {
         let successCount = 0;
         let failedCount = 0;
 
-        const updatedAllotments = [...allotments];
-        
-        jsonData.forEach((row) => {
+        for (const row of jsonData) {
           const studentId = row.StudentID || row['Student ID'];
-          const index = updatedAllotments.findIndex(a => a.student?.id === studentId);
-          
-          if (index !== -1) {
-            updatedAllotments.splice(index, 1);
-            successCount++;
+          const student = students.find(s => s.customId === studentId || s._id === studentId);
+
+          if (student) {
+            try {
+              await api.patch(`/users/${student._id}/allot`, {
+                roomNumber: "",
+                block: "",
+                messId: ""
+              });
+              successCount++;
+            } catch (err) {
+              failedCount++;
+            }
           } else {
             failedCount++;
           }
-        });
+        }
 
         if (successCount > 0) {
-          saveAllotments(updatedAllotments);
-          setAllotments(updatedAllotments);
-          setUploadSuccess(`Successfully checked out ${successCount} students. ${failedCount > 0 ? `${failedCount} IDs not found in registry.` : ''}`);
-          setSelectedFile(null);
+          setUploadSuccess(`Successfully checked out ${successCount} students. ${failedCount > 0 ? `${failedCount} failed.` : ''}`);
+          fetchData();
         } else {
-          setUploadError('No matching Student IDs found in the registry. Please check your Excel file.');
+          setUploadError('No matching students found.');
         }
       } catch (err) {
-        setUploadError('Failed to parse file. Please ensure it follows the correct format.');
+        setUploadError('Failed to parse file.');
       } finally {
         setIsUploading(false);
+        setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setTimeout(() => setUploadSuccess(null), 5000);
       }
@@ -187,27 +234,88 @@ export function RoomAllotment() {
     reader.readAsArrayBuffer(selectedFile);
   };
 
-  const handleDeleteAllotment = (id) => {
-    if (window.confirm('Are you sure you want to check out this student? This will free up the bed.')) {
-      const updated = removeAllotment(id);
-      setAllotments(updated);
-      setUploadSuccess('Student checked out successfully!');
+  const handleCreateRoom = async (e) => {
+    e.preventDefault();
+    try {
+      setIsUploading(true);
+      await api.post('/rooms/create', roomFormData);
+      setIsRoomModalOpen(false);
+      setRoomFormData({ number: '', block: 'A', capacity: 3, type: 'Boys' });
+      fetchData();
+      setUploadSuccess("Room created successfully!");
+    } catch (err) {
+      setUploadError(err.message || "Failed to create room.");
+    } finally {
+      setIsUploading(false);
       setTimeout(() => setUploadSuccess(null), 3000);
     }
   };
 
-  const handleUpdateMess = (id, newMessId) => {
-    const updated = updateAllotment(id, { messId: newMessId });
-    setAllotments(updated);
-    setEditingAllotment(null);
-    setUploadSuccess('Mess re-allotted successfully!');
-    setTimeout(() => setUploadSuccess(null), 3000);
+  const handleUpdateRoom = async (e) => {
+    e.preventDefault();
+    try {
+      setIsUploading(true);
+      await api.put(`/rooms/${editingRoom._id}`, roomFormData);
+      setIsRoomModalOpen(false);
+      setEditingRoom(null);
+      fetchData();
+      setUploadSuccess("Room updated successfully!");
+    } catch (err) {
+      setUploadError(err.message || "Failed to update room.");
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadSuccess(null), 3000);
+    }
+  };
+
+  const handleDeleteRoom = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this room? This cannot be undone.")) return;
+    try {
+      setIsUploading(true);
+      await api.delete(`/rooms/${id}`);
+      fetchData();
+      setUploadSuccess("Room deleted successfully!");
+    } catch (err) {
+      setUploadError(err.message || "Failed to delete room.");
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadSuccess(null), 3000);
+    }
+  };
+
+  const handleDeleteAllotment = async (id) => {
+    if (window.confirm('Are you sure you want to check out this student? This will free up the bed.')) {
+      try {
+        await api.patch(`/users/${id}/allot`, {
+          roomNumber: "",
+          block: "",
+          messId: ""
+        });
+        setUploadSuccess('Student checked out successfully!');
+        fetchData();
+        setTimeout(() => setUploadSuccess(null), 3000);
+      } catch (err) {
+        setUploadError(err.message || 'Failed to checkout student.');
+      }
+    }
+  };
+
+  const handleUpdateMess = async (id, newMessId) => {
+    try {
+      await api.patch(`/users/${id}/allot`, {
+        messId: newMessId
+      });
+      setUploadSuccess('Mess re-allotted successfully!');
+      setEditingAllotment(null);
+      fetchData();
+      setTimeout(() => setUploadSuccess(null), 3000);
+    } catch (err) {
+      setUploadError(err.message || 'Failed to update mess.');
+    }
   };
 
   const downloadAllotments = () => {
-
     const data = allotments.map(a => ({
-      'Allotment ID': a.id,
       'Student ID': a.student?.id,
       'Student Name': a.student?.name,
       'Room Number': a.room?.number,
@@ -223,17 +331,15 @@ export function RoomAllotment() {
   const downloadTemplate = () => {
     let templateData = [];
     let filename = "";
-    
+
     if (viewMode === 'manage') {
       templateData = [
-        { 'StudentID': 'S102', 'RoomNumber': 'A-102' },
-        { 'StudentID': 'S103', 'RoomNumber': 'B-201' }
+        { 'StudentID': 'S102', 'RoomNumber': 'A-102', 'Block': 'A', 'MessID': 'Mess 1' },
       ];
       filename = "bulk_allotment_template.xlsx";
     } else {
       templateData = [
         { 'StudentID': 'S101' },
-        { 'StudentID': 'S104' }
       ];
       filename = "bulk_checkout_template.xlsx";
     }
@@ -244,17 +350,16 @@ export function RoomAllotment() {
     XLSX.writeFile(wb, filename);
   };
 
-  const filteredAllotments = allotments.filter(a => 
+  const filteredAllotments = allotments.filter(a =>
     a.student?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     a.student?.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     a.room?.number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const tableColumns = [
-    { header: 'ID', accessorKey: 'id' },
-    { 
-      header: 'Student', 
-      accessorKey: 'student', 
+    {
+      header: 'Student',
+      accessorKey: 'student',
       cell: (row) => (
         <div className="flex flex-col">
           <span className="font-bold text-foreground truncate max-w-[150px]">{row.student?.name}</span>
@@ -264,22 +369,21 @@ export function RoomAllotment() {
     },
     { header: 'Room', accessorKey: 'room', cell: (row) => <span className="font-mono font-bold text-primary">{row.room?.number}</span> },
     { header: 'Mess', accessorKey: 'messId', cell: (row) => <span className="font-bold text-muted-foreground">{row.messId || 'N/A'}</span> },
-    { header: 'Type', accessorKey: 'room', cell: (row) => <span className="text-xs text-muted-foreground">{row.room?.capacity} Seater</span> },
     { header: 'Date', accessorKey: 'date' },
     { header: 'Status', accessorKey: 'status', cell: (row) => <StatusBadge status={row.status} /> },
-    { 
-      header: 'Action', 
+    {
+      header: 'Action',
       accessorKey: 'id',
       cell: (row) => (
         <div className="flex items-center gap-1">
-          <button 
+          <button
             onClick={() => setEditingAllotment(row)}
             className="p-2 text-amber-600 hover:bg-amber-600/10 rounded-lg transition-all"
             title="Edit Mess"
           >
             <Edit2 size={16} />
           </button>
-          <button 
+          <button
             onClick={() => handleDeleteAllotment(row.id)}
             className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
             title="Check Out Student"
@@ -291,15 +395,22 @@ export function RoomAllotment() {
     },
   ];
 
-
-  const availableStudents = mockStudents.filter(
-    (student) => !allotments.some((a) => a.student?.id === student.id)
+  const availableStudents = students.filter(
+    (student) => !allotments.some((a) => a.student?._id === student._id)
   );
 
-  const filteredRoomsForSelection = mockRooms.filter((room) => {
-    const occupancy = allotments.filter(a => a.room?.id === room.id).length;
+  const filteredRoomsForSelection = rooms.filter((room) => {
+    const occupancy = allotments.filter(a => a.room?.number === room.number).length;
     return occupancy < room.capacity;
   }).filter(room => capacityFilter === 'all' || room.capacity.toString() === capacityFilter);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pt-5 pb-12">
@@ -309,108 +420,44 @@ export function RoomAllotment() {
           <h1 className="text-2xl font-bold tracking-tight">Room Management</h1>
           <p className="text-muted-foreground mt-1 text-sm">Assign and monitor hostel room distribution.</p>
         </div>
-        
+
         <div className="flex gap-1 p-1 bg-muted/40 backdrop-blur-md rounded-2xl border border-border/50 w-full sm:w-auto overflow-x-auto no-scrollbar">
-          <button 
-            onClick={() => setViewMode('list')}
-            className={cn(
-              "flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-              viewMode === 'list' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <List size={16} /> <span className="hidden sm:inline">Allotted</span> List
-          </button>
-          <button 
-            onClick={() => setViewMode('manage')}
-            className={cn(
-              "flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-              viewMode === 'manage' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <UserPlus size={16} /> <span className="hidden sm:inline">New</span> Allotment
-          </button>
-          <button 
-            onClick={() => setViewMode('checkout')}
-            className={cn(
-              "flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-              viewMode === 'checkout' ? "bg-background shadow-lg text-destructive" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Trash2 size={16} /> <span className="hidden sm:inline">Student</span> CheckOut
-          </button>
+          <button onClick={() => setViewMode('list')} className={cn("flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap", viewMode === 'list' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground")}><List size={16} /> <span className="hidden sm:inline">Allotted</span> List</button>
+          <button onClick={() => setViewMode('manage')} className={cn("flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap", viewMode === 'manage' ? "bg-background shadow-lg text-primary" : "text-muted-foreground hover:text-foreground")}><UserPlus size={16} /> <span className="hidden sm:inline">New</span> Allotment</button>
+          <button onClick={() => setViewMode('checkout')} className={cn("flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap", viewMode === 'checkout' ? "bg-background shadow-lg text-destructive" : "text-muted-foreground hover:text-foreground")}><Trash2 size={16} /> <span className="hidden sm:inline">Student</span> CheckOut</button>
         </div>
       </div>
 
       {viewMode === 'list' ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Filters Bar */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-muted/20 p-4 rounded-2xl border border-border/50 shadow-sm backdrop-blur-sm">
-             <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search name, ID, or room..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                />
-             </div>
-             <button 
-               onClick={downloadAllotments}
-               className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-bold hover:bg-primary/20 transition-all active:scale-95 duration-200"
-             >
-               <Download size={18} /> Export <span className="hidden sm:inline">to Excel</span>
-             </button>
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input type="text" placeholder="Search name, ID, or room..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <button onClick={downloadAllotments} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-bold hover:bg-primary/20 transition-all active:scale-95 duration-200"><Download size={18} /> Export <span className="hidden sm:inline">to Excel</span></button>
           </div>
 
-          {/* Table for Desktop, Cards for Mobile */}
-          <div className="hidden md:block overflow-hidden rounded-2xl border border-border/50 shadow-sm">
-            <DataTable columns={tableColumns} data={filteredAllotments} />
-          </div>
+          <div className="hidden md:block overflow-hidden rounded-2xl border border-border/50 shadow-sm"><DataTable columns={tableColumns} data={filteredAllotments} /></div>
 
-          {/* Mobile Card View */}
+          {/* Mobile View */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {filteredAllotments.length > 0 ? (
-              filteredAllotments.map((a) => (
-                <div key={a.id} className="glass-card p-5 border border-border/50 space-y-4 hover:border-primary/30 transition-all">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <Users size={20} />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-sm">{a.student?.name}</h3>
-                        <p className="text-[10px] text-muted-foreground uppercase font-medium">{a.student?.id}</p>
-                      </div>
-                    </div>
-                    <StatusBadge status={a.status} />
+            {filteredAllotments.length > 0 ? filteredAllotments.map((a) => (
+              <div key={a.id} className="glass-card p-5 border border-border/50 space-y-4 hover:border-primary/30 transition-all">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Users size={20} /></div>
+                    <div><h3 className="font-bold text-sm">{a.student?.name}</h3><p className="text-[10px] text-muted-foreground uppercase font-medium">{a.student?.id}</p></div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/30">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5"><Hash size={10} /> Room & Type</p>
-                      <p className="text-sm font-bold text-primary">{a.room?.number} <span className="text-[10px] text-muted-foreground font-medium italic">({a.room?.capacity} Seater)</span></p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5"><Calendar size={10} /> Allotted On</p>
-                      <p className="text-sm font-medium text-foreground">{a.date}</p>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={() => handleDeleteAllotment(a.id)}
-                    className="w-full py-2.5 bg-destructive/5 text-destructive border border-destructive/10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-destructive/10 transition-all"
-                  >
-                    <Trash2 size={14} /> Check Out Student
-                  </button>
+                  <StatusBadge status={a.status} />
                 </div>
-              ))
-            ) : (
-              <div className="p-12 text-center rounded-2xl border-2 border-dashed border-border/40">
-                <Search size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-sm text-muted-foreground font-medium">No allotments found matching your search.</p>
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/30">
+                  <div className="space-y-1"><p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5"><Hash size={10} /> Room</p><p className="text-sm font-bold text-primary">{a.room?.number}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5"><Calendar size={10} /> Allotted On</p><p className="text-sm font-medium text-foreground">{a.date}</p></div>
+                </div>
+                <button onClick={() => handleDeleteAllotment(a.id)} className="w-full py-2.5 bg-destructive/5 text-destructive border border-destructive/10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-destructive/10 transition-all"><Trash2 size={14} /> Check Out Student</button>
               </div>
-            )}
+            )) : <div className="p-12 text-center rounded-2xl border-2 border-dashed border-border/40"><Search size={32} className="mx-auto text-muted-foreground/30 mb-3" /><p className="text-sm text-muted-foreground font-medium">No allotments found matching your search.</p></div>}
           </div>
         </div>
       ) : viewMode === 'manage' ? (
@@ -427,24 +474,45 @@ export function RoomAllotment() {
                   <form onSubmit={handleManualAllot} className="space-y-5">
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Select Student</label>
-                      <select className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium" value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)} required>
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search by ID or Name..."
+                          value={studentSearchTerm}
+                          onChange={(e) => setStudentSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                        />
+                      </div>
+                      <select
+                        className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium"
+                        value={selectedStudent}
+                        onChange={(e) => setSelectedStudent(e.target.value)}
+                        required
+                      >
                         <option value="">Choosing a student...</option>
-                        {availableStudents.map(s => <option key={s.id} value={s.id}>{s.name} ({s.course})</option>)}
+                        {availableStudents
+                          .filter(s =>
+                            s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+                            s.customId.toLowerCase().includes(studentSearchTerm.toLowerCase())
+                          )
+                          .map(s => <option key={s._id} value={s._id}>{s.name} ({s.customId})</option>)
+                        }
                       </select>
                     </div>
-                    
+
                     <div className="space-y-2">
-                       <div className="flex justify-between items-center px-1">
-                          <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Select Room</label>
-                          <select className="text-[10px] font-bold text-primary bg-transparent outline-none cursor-pointer" value={capacityFilter} onChange={(e) => setCapacityFilter(e.target.value)}>
-                            <option value="all">All Capacities</option>
-                            <option value="3">3 Seater</option>
-                            <option value="4">4 Seater</option>
-                          </select>
-                       </div>
-                       <select className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium" value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} required>
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Select Room</label>
+                        <select className="text-[10px] font-bold text-primary bg-transparent outline-none cursor-pointer" value={capacityFilter} onChange={(e) => setCapacityFilter(e.target.value)}>
+                          <option value="all">All Capacities</option>
+                          <option value="3">3 Seater</option>
+                          <option value="4">4 Seater</option>
+                        </select>
+                      </div>
+                      <select className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium" value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} required>
                         <option value="">Choose a room...</option>
-                        {filteredRoomsForSelection.map(r => <option key={r.id} value={r.id}>{r.number} - {r.capacity} Seater</option>)}
+                        {filteredRoomsForSelection.map(r => <option key={r.number} value={r.number}>{r.number} - {r.capacity} Seater</option>)}
                       </select>
                     </div>
 
@@ -454,99 +522,72 @@ export function RoomAllotment() {
                         {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </div>
-                    
-                    <button type="submit" className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-3 mt-2 active:scale-95">
-                      <BedDouble size={20} /> Confirm Allotment
-                    </button>
+
+                    <button type="submit" className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-3 mt-2 active:scale-95"><BedDouble size={20} /> Confirm Allotment</button>
                   </form>
                 ) : (
                   <div className="space-y-6">
-                     <div 
-                       onClick={() => fileInputRef.current?.click()} 
-                       className={cn(
-                         "group border-2 border-dashed border-border/60 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all duration-300",
-                         selectedFile && "border-primary/40 bg-primary/5"
-                       )}
-                     >
-                        <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx,.xls,.csv" className="hidden" />
-                        <div className={cn(
-                          "h-16 w-16 rounded-full flex items-center justify-center transition-transform",
-                          selectedFile ? "bg-emerald-500/10 text-emerald-600 outline outline-4 outline-emerald-500/5 scale-110" : "bg-primary/10 text-primary group-hover:scale-110"
-                        )}>
-                          {selectedFile ? <Check size={28} /> : <Upload size={28} />}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-bold">{selectedFile ? selectedFile.name : 'Upload Allotment Excel'}</p>
-                          <p className="text-[10px] text-muted-foreground mt-1 uppercase font-medium">
-                            {selectedFile ? 'File selected! Ready to process.' : 'Click to browse your files'}
-                          </p>
-                        </div>
-                     </div>
-
-                     <button 
-                       onClick={processBulkAllotment}
-                       disabled={isUploading || !selectedFile}
-                       className={cn(
-                         "w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3",
-                         selectedFile ? "bg-emerald-600 text-white shadow-emerald-500/20 hover:bg-emerald-700" : "bg-muted text-muted-foreground shadow-none"
-                       )}
-                     >
-                       {isUploading ? <Loader2 size={20} className="animate-spin" /> : <FileSpreadsheet size={20} />}
-                       Process Bulk Allotment
-                     </button>
-
-                     <button onClick={downloadTemplate} className="w-full py-3 text-xs font-bold border border-border rounded-xl hover:bg-muted transition-all flex items-center justify-center gap-2 group">
-                        <Download size={16} className="group-hover:-translate-y-0.5 transition-transform" /> Download Allotment Template
-                     </button>
+                    <div onClick={() => fileInputRef.current?.click()} className={cn("group border-2 border-dashed border-border/60 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all duration-300", selectedFile && "border-primary/40 bg-primary/5")}>
+                      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx,.xls,.csv" className="hidden" />
+                      <div className={cn("h-16 w-16 rounded-full flex items-center justify-center transition-transform", selectedFile ? "bg-emerald-500/10 text-emerald-600 outline outline-4 outline-emerald-500/5 scale-110" : "bg-primary/10 text-primary group-hover:scale-110")}>{selectedFile ? <Check size={28} /> : <Upload size={28} />}</div>
+                      <div className="text-center"><p className="text-sm font-bold">{selectedFile ? selectedFile.name : 'Upload Allotment Excel'}</p><p className="text-[10px] text-muted-foreground mt-1 uppercase font-medium">{selectedFile ? 'File selected!' : 'Click to browse'}</p></div>
+                    </div>
+                    <button onClick={processBulkAllotment} disabled={isUploading || !selectedFile} className={cn("w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3", selectedFile ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-muted text-muted-foreground")}>{isUploading ? <Loader2 size={20} className="animate-spin" /> : <FileSpreadsheet size={20} />} Process Bulk Allotment</button>
+                    <button onClick={downloadTemplate} className="w-full py-3 text-xs font-bold border border-border rounded-xl hover:bg-muted transition-all flex items-center justify-center gap-2 group"><Download size={16} /> Template</button>
                   </div>
                 )}
-                
-                {(uploadSuccess || uploadError) && (
-                  <div className={cn("mt-6 p-4 rounded-xl text-xs font-bold flex gap-3 animate-in slide-in-from-top-2", uploadSuccess ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shadow-sm shadow-emerald-500/10" : "bg-destructive/10 text-destructive border border-destructive/20 shadow-sm shadow-destructive/10")}>
-                    {uploadSuccess ? <Check size={16} className="shrink-0" /> : <AlertCircle size={16} className="shrink-0" />}
-                    <p className="leading-relaxed">{uploadSuccess || uploadError}</p>
-                  </div>
-                )}
+
+                {(uploadSuccess || uploadError) && (<div className={cn("mt-6 p-4 rounded-xl text-xs font-bold flex gap-3 animate-in slide-in-from-top-2", uploadSuccess ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-destructive/10 text-destructive border border-destructive/20")}>{uploadSuccess ? <Check size={16} /> : <AlertCircle size={16} />}<p>{uploadSuccess || uploadError}</p></div>)}
               </div>
             </div>
           </div>
 
-          {/* Vacant Rooms Grid */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 underline underline-offset-8 decoration-primary/20">
-                <Users size={16} className="text-primary" /> Live Vacancy Dashboard
-              </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 underline underline-offset-8 decoration-primary/20"><Users size={16} className="text-primary" /> Live Vacancy Dashboard</h2>
+              <button
+                onClick={() => { setEditingRoom(null); setRoomFormData({ number: '', block: 'A', capacity: 3, type: 'Boys' }); setIsRoomModalOpen(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-xs font-bold hover:bg-primary/20 transition-all"
+              >
+                <Plus size={14} /> Add Room
+              </button>
             </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-              {mockRooms.filter(r => allotments.filter(a => a.room?.id === r.id).length < r.capacity).slice(0, 8).map(r => (
-                <div key={r.id} className="p-6 glass-card border-none bg-emerald-500/5 group hover:bg-emerald-500/10 transition-all cursor-pointer relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-1.5 bg-emerald-500/20 rounded-bl-xl opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Plus size={12} className="text-emerald-600" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-2xl font-black text-emerald-600 tracking-tighter">{r.number}</span>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground">{r.capacity} Seater</span>
-                      <span className="text-[11px] font-extrabold text-emerald-700/70">{r.capacity - allotments.filter(a => a.room?.id === r.id).length} Beds Available</span>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {rooms.map(r => {
+                const occupancy = allotments.filter(a => a.room?.number === r.number).length;
+                const isAvailable = occupancy < r.capacity;
+                return (
+                  <div key={r.number} className={cn("group p-6 glass-card border-none transition-all cursor-pointer relative overflow-hidden", isAvailable ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "bg-destructive/5 grayscale opacity-60")}>
+                    {/* Admin Actions Overlay */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingRoom(r); setRoomFormData({ number: r.number, block: r.block, capacity: r.capacity, type: r.type }); setIsRoomModalOpen(true); }}
+                        className="p-1.5 bg-background/80 hover:bg-background text-amber-600 rounded-lg backdrop-blur-md"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRoom(r._id); }}
+                        className="p-1.5 bg-background/80 hover:bg-background text-destructive rounded-lg backdrop-blur-md"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className={cn("text-2xl font-black tracking-tighter", isAvailable ? "text-emerald-600" : "text-destructive")}>{r.number}</span>
+                      <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground">{r.capacity} Seater ({r.block})</span><span className={cn("text-[11px] font-extrabold", isAvailable ? "text-emerald-700/70" : "text-destructive/70")}>{isAvailable ? `${r.capacity - occupancy} Beds` : 'Full'}</span></div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="p-5 bg-primary/5 border border-primary/10 rounded-2xl flex items-center gap-4 animate-in slide-in-from-right-4 duration-500">
-               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><AlertCircle size={20} /></div>
-               <p className="text-xs font-medium text-foreground/70 leading-relaxed">
-                 <strong className="text-primary font-bold">Pro Tip:</strong> Use the "Bulk Upload" feature for semester-wide room transitions. Ensure your Excel sheet matches the student IDs exactly to avoid allotment failures.
-               </p>
+                );
+              })}
             </div>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-           <div className="lg:col-span-1">
+          <div className="lg:col-span-1">
             <div className="glass-card overflow-hidden border border-border/50">
               <div className="flex border-b border-border/50 bg-muted/10">
                 <button onClick={() => setCheckoutTab('manual')} className={cn("flex-1 py-4 text-xs font-bold uppercase tracking-wider transition-all", checkoutTab === 'manual' ? "bg-background text-destructive border-b-2 border-destructive shadow-inner" : "text-muted-foreground hover:bg-muted/30")}>Manual Checkout</button>
@@ -556,156 +597,139 @@ export function RoomAllotment() {
               <div className="p-6">
                 {checkoutTab === 'manual' ? (
                   <div className="space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Quick Checkout Search</label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <input 
-                          type="text" 
-                          placeholder="Search student name/ID..." 
-                          value={checkoutSearchTerm}
-                          onChange={(e) => setCheckoutSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background focus:ring-2 focus:ring-destructive/20 outline-none transition-all text-sm" 
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                      {allotments.filter(a => 
-                        a.student?.name.toLowerCase().includes(checkoutSearchTerm.toLowerCase()) ||
-                        a.student?.id.toLowerCase().includes(checkoutSearchTerm.toLowerCase())
-                      ).length > 0 ? (
-                        allotments.filter(a => 
-                          a.student?.name.toLowerCase().includes(checkoutSearchTerm.toLowerCase()) ||
-                          a.student?.id.toLowerCase().includes(checkoutSearchTerm.toLowerCase())
-                        ).map(a => (
-                          <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-all">
-                            <div>
-                              <p className="text-xs font-bold">{a.student?.name}</p>
-                              <p className="text-[10px] text-muted-foreground">Room {a.room?.number}</p>
-                            </div>
-                            <button 
-                              onClick={() => handleDeleteAllotment(a.id)}
-                              className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
-                            >
-                              <Check size={16} />
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-center py-8 text-[10px] text-muted-foreground">No active allotments found.</p>
-                      )}
+                    <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><input type="text" placeholder="Search student name/ID..." value={checkoutSearchTerm} onChange={(e) => setCheckoutSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background focus:ring-2 focus:ring-destructive/20 outline-none text-sm" /></div>
+                    <div className="max-h-[300px] overflow-y-auto space-y-2 custom-scrollbar">
+                      {allotments.filter(a => a.student?.name.toLowerCase().includes(checkoutSearchTerm.toLowerCase()) || a.student?.id.toLowerCase().includes(checkoutSearchTerm.toLowerCase())).map(a => (
+                        <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 flex-wrap gap-2">
+                          <div><p className="text-xs font-bold">{a.student?.name}</p><p className="text-[10px] text-muted-foreground">Room {a.room?.number}</p></div>
+                          <button onClick={() => handleDeleteAllotment(a.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                     <div 
-                       onClick={() => fileInputRef.current?.click()} 
-                       className={cn(
-                         "group border-2 border-dashed border-border/60 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-destructive/5 hover:border-destructive/50 transition-all duration-300",
-                         selectedFile && "border-destructive/40 bg-destructive/5"
-                       )}
-                     >
-                        <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx,.xls,.csv" className="hidden" />
-                        <div className={cn(
-                          "h-16 w-16 rounded-full flex items-center justify-center transition-transform",
-                          selectedFile ? "bg-destructive/10 text-destructive outline-destructive/5 outline outline-4 scale-110" : "bg-destructive/10 text-destructive group-hover:scale-110"
-                        )}>
-                          {selectedFile ? <Check size={28} /> : <Trash2 size={28} />}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-bold">{selectedFile ? selectedFile.name : 'Bulk Checkout Excel'}</p>
-                          <p className="text-[10px] text-muted-foreground mt-1 uppercase font-medium">
-                            {selectedFile ? 'File selected! Ready to process.' : 'Click to browse your files'}
-                          </p>
-                        </div>
-                     </div>
-
-                     <button 
-                       onClick={processBulkCheckout}
-                       disabled={isUploading || !selectedFile}
-                       className={cn(
-                         "w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3",
-                         selectedFile ? "bg-destructive text-white shadow-destructive-500/20 hover:bg-destructive/90" : "bg-muted text-muted-foreground shadow-none"
-                       )}
-                     >
-                       {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
-                       Run Bulk Checkout
-                     </button>
-
-                     <button onClick={downloadTemplate} className="w-full py-3 text-xs font-bold border border-border rounded-xl hover:bg-muted transition-all flex items-center justify-center gap-2 group">
-                        <Download size={16} className="group-hover:-translate-y-0.5 transition-transform" /> Download Checkout Template
-                     </button>
+                    <div onClick={() => fileInputRef.current?.click()} className={cn("group border-2 border-dashed border-border/60 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-destructive/5 transition-all duration-300", selectedFile && "border-destructive/40 bg-destructive/5")}>
+                      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx,.xls,.csv" className="hidden" />
+                      <div className="h-16 w-16 rounded-full bg-destructive/10 text-destructive flex items-center justify-center group-hover:scale-110 transition-transform"><Trash2 size={28} /></div>
+                      <div className="text-center"><p className="text-sm font-bold">{selectedFile ? selectedFile.name : 'Bulk Checkout Excel'}</p></div>
+                    </div>
+                    <button onClick={processBulkCheckout} disabled={isUploading || !selectedFile} className={cn("w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3", selectedFile ? "bg-destructive text-white" : "bg-muted text-muted-foreground")}>{isUploading ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />} Run Bulk Checkout</button>
                   </div>
                 )}
-                
-                {(uploadSuccess || uploadError) && (
-                  <div className={cn("mt-6 p-4 rounded-xl text-xs font-bold flex gap-3 animate-in slide-in-from-top-2", uploadSuccess ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shadow-sm shadow-emerald-500/10" : "bg-destructive/10 text-destructive border border-destructive/20 shadow-sm shadow-destructive/10")}>
-                    {uploadSuccess ? <Check size={16} className="shrink-0" /> : <AlertCircle size={16} className="shrink-0" />}
-                    <p className="leading-relaxed">{uploadSuccess || uploadError}</p>
-                  </div>
-                )}
+                {(uploadSuccess || uploadError) && (<div className={cn("mt-6 p-4 rounded-xl text-xs font-bold flex gap-3", uploadSuccess ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive")}>{uploadSuccess ? <Check size={16} /> : <AlertCircle size={16} />}<p>{uploadSuccess || uploadError}</p></div>)}
               </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 space-y-6">
-            <div className="glass-card p-8 flex flex-col items-center justify-center text-center space-y-4 border-none bg-destructive/5">
-               <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive"><Trash2 size={32} /></div>
-               <div>
-                  <h3 className="text-lg font-bold">Standard Student Checkout</h3>
-                  <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1">Use this section to process student departures. Manual checkout removes a single student, while Bulk Checkout handles many at once.</p>
-               </div>
-               <div className="p-4 bg-background rounded-xl border border-destructive/10 text-[10px] font-bold text-destructive uppercase tracking-wider">
-                  Caution: This action will permanently free up the room seat.
-               </div>
             </div>
           </div>
         </div>
       )}
-      {/* Edit Allotment Modal */}
+
+      {/* Re-allot Mess Modal */}
       {editingAllotment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-background border border-border rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-background border border-border rounded-3xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Re-allot Mess</h2>
-              <button onClick={() => setEditingAllotment(null)} className="p-2 hover:bg-muted rounded-full transition-colors">
-                <X size={20} />
-              </button>
+              <button onClick={() => setEditingAllotment(null)} className="p-2 hover:bg-muted rounded-full transition-colors"><X size={20} /></button>
             </div>
-            
             <div className="space-y-6">
               <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                  <Users size={24} />
-                </div>
-                <div>
-                  <p className="font-bold">{editingAllotment.student?.name}</p>
-                  <p className="text-xs text-muted-foreground">{editingAllotment.student?.id} • Room {editingAllotment.room?.number}</p>
-                </div>
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><Users size={24} /></div>
+                <div><p className="font-bold">{editingAllotment.student?.name}</p><p className="text-xs text-muted-foreground">{editingAllotment.student?.id} • Room {editingAllotment.room?.number}</p></div>
               </div>
-
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Select New Mess</label>
-                <select 
-                  className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all font-medium" 
-                  defaultValue={editingAllotment.messId}
-                  onChange={(e) => handleUpdateMess(editingAllotment.id, e.target.value)}
-                >
+                <select className="w-full h-12 px-4 rounded-xl border border-border bg-background outline-none transition-all font-medium" defaultValue={editingAllotment.messId} onChange={(e) => handleUpdateMess(editingAllotment.id, e.target.value)}>
                   {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-
-              <div className="pt-2">
-                <p className="text-[10px] text-center text-muted-foreground italic">
-                  Note: Updating the mess will take effect immediately for the student.
-                </p>
-              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room CRUD Modal */}
+      {isRoomModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-background border border-border/50 rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">{editingRoom ? 'Edit Room' : 'Add New Room'}</h2>
+                <p className="text-xs text-muted-foreground mt-1 font-bold uppercase tracking-widest">Configuration Panel</p>
+              </div>
+              <button onClick={() => setIsRoomModalOpen(false)} className="p-2.5 hover:bg-muted rounded-xl transition-all"><X size={22} /></button>
+            </div>
+
+            <form onSubmit={editingRoom ? handleUpdateRoom : handleCreateRoom} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Room Number</label>
+                  <input
+                    type="text"
+                    value={roomFormData.number}
+                    onChange={(e) => setRoomFormData({ ...roomFormData, number: e.target.value })}
+                    className="w-full h-12 px-4 rounded-xl border border-border bg-muted/20 focus:ring-2 focus:ring-primary/40 outline-none transition-all font-bold"
+                    placeholder="e.g. 101"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Hostel Block</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="blocks-list"
+                      value={roomFormData.block}
+                      onChange={(e) => setRoomFormData({ ...roomFormData, block: e.target.value })}
+                      className="w-full h-12 px-4 rounded-xl border border-border bg-muted/20 focus:ring-2 focus:ring-primary/40 outline-none transition-all font-bold"
+                      placeholder="Block A"
+                    />
+                    <datalist id="blocks-list">
+                      {uniqueBlocks.map(b => <option key={b} value={b} />)}
+                    </datalist>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Capacity</label>
+                  <select
+                    value={roomFormData.capacity}
+                    onChange={(e) => setRoomFormData({ ...roomFormData, capacity: parseInt(e.target.value) })}
+                    className="w-full h-12 px-4 rounded-xl border border-border bg-muted/20 focus:ring-2 focus:ring-primary/40 outline-none transition-all font-bold"
+                  >
+                    <option value={1}>1 Seater</option>
+                    <option value={2}>2 Seater</option>
+                    <option value={3}>3 Seater</option>
+                    <option value={4}>4 Seater</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Hostel Type</label>
+                  <select
+                    value={roomFormData.type}
+                    onChange={(e) => setRoomFormData({ ...roomFormData, type: e.target.value })}
+                    className="w-full h-12 px-4 rounded-xl border border-border bg-muted/20 focus:ring-2 focus:ring-primary/40 outline-none transition-all font-bold"
+                  >
+                    <option value="Boys">Boys Hostel</option>
+                    <option value="Girls">Girls Hostel</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isUploading}
+                className="w-full h-14 bg-primary text-primary-foreground font-black rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+              >
+                {isUploading ? <Loader2 className="animate-spin" size={24} /> : <Check size={24} />}
+                {editingRoom ? 'UPDATE ROOM' : 'ADD ROOM'}
+              </button>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 }
-

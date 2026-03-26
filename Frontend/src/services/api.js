@@ -7,24 +7,33 @@ export const api = axios.create({
   },
 });
 
+// ✅ Request Interceptor (Attach Token)
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
-api.interceptors.response.use((response) => {
-  return response.data;
-}, (error) => {
-  if (error.response?.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    window.location.href = '/';
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ✅ Response Interceptor
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+
+      // Only redirect if NOT on login page
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error.response?.data || error.message);
   }
-  return Promise.reject(error.response?.data || error.message);
-});
+);

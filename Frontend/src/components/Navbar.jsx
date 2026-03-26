@@ -8,9 +8,9 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
 
   // Initialize theme from localStorage or system preference
   useEffect(() => {
-    const isDarkMode = localStorage.getItem('theme') === 'dark' || 
+    const isDarkMode = localStorage.getItem('theme') === 'dark' ||
       (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    
+
     setIsDark(isDarkMode);
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -43,13 +43,13 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border/50 bg-background/70 px-4 md:px-6 backdrop-blur-xl">
       <div className="flex items-center gap-4">
-        <button 
+        <button
           onClick={toggleSidebar}
           className="p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors"
         >
           <Menu size={20} />
         </button>
-        
+
         {/* Only show logo in navbar when sidebar is collapsed or on smaller screens */}
         <div className={cn(
           "font-bold text-xl tracking-tight hidden lg:block transition-all",
@@ -60,7 +60,7 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <button 
+        <button
           onClick={toggleTheme}
           className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/50 transition-colors"
           aria-label="Toggle Dark Mode"
@@ -68,17 +68,12 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
           {isDark ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
-        <button className="relative p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/50 transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
-        </button>
-
         <div className="flex items-center gap-2 pl-2 border-l border-border/50 ml-2">
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-sm font-semibold leading-none">{userName}</span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{role}</span>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="flex h-8 items-center gap-2 px-3 text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
             title="Sign Out"

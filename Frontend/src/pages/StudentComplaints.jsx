@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, AlertCircle, CheckCircle2, MessageSquare, Clock, 
+import {
+  Plus, AlertCircle, CheckCircle2, MessageSquare, Clock,
   ChevronDown, Loader2, Eye, X, Send
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from '../components/StatusBadge';
-import { getComplaints, addComplaint, CATEGORIES, PRIORITIES } from '../services/complaintStore';
+import { api } from '../services/api';
 
 export function StudentComplaints() {
   const [complaints, setComplaints] = useState([]);
@@ -14,44 +14,77 @@ export function StudentComplaints() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
+  const [activeTab, setActiveTab] = useState('my'); // 'my' or 'all'
 
-  const studentName = localStorage.getItem('name') || 'Rahul Sharma';
-  const studentId = localStorage.getItem('userID') || 'STU-001';
-  const room = 'B-204';
+  const studentName = localStorage.getItem('name') || 'Student';
+  const studentId = localStorage.getItem('userID');
+  const studentRoom = localStorage.getItem('roomNumber') || 'Pending';
 
   const [form, setForm] = useState({
     title: '', category: 'Electrical', description: '', priority: 'Medium'
   });
 
-  const loadComplaints = () => {
-    const all = getComplaints();
-    // Students see only their own complaints
-    setComplaints(all.filter(c => c.studentId === studentId));
+  const loadComplaints = async () => {
+    try {
+      const data = await api.get('/complaints');
+      setComplaints(data);
+    } catch (err) {
+      console.error("Failed to load complaints", err);
+    }
   };
 
   useEffect(() => { loadComplaints(); }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      addComplaint({ ...form, studentName, studentId, room });
+    setMessage({ type: '', text: '' });
+    try {
+      await api.post('/complaints', { ...form, room: studentRoom });
       setMessage({ type: 'success', text: 'Complaint submitted successfully! You can track the status here.' });
       setForm({ title: '', category: 'Electrical', description: '', priority: 'Medium' });
       setIsModalOpen(false);
-      setIsSubmitting(false);
       loadComplaints();
-    }, 800);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to submit complaint.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  const CATEGORIES = ['Electrical', 'Plumbing', 'Internet', 'Cleanliness', 'Furniture', 'Security', 'Mess', 'Other'];
+  const PRIORITIES = ['Low', 'Medium', 'High'];
+
   const filters = ['All', 'Pending', 'In Progress', 'Resolved', 'Rejected'];
-  const filtered = activeFilter === 'All' ? complaints : complaints.filter(c => c.status === activeFilter);
+  
+  const baseFiltered = activeTab === 'my' 
+    ? complaints.filter(c => {
+        const cId = c.studentId?._id || c.studentId;
+        return cId === studentId;
+      })
+    : complaints;
+
+  const filtered = activeFilter === 'All' 
+    ? baseFiltered 
+    : baseFiltered.filter(c => c.status === activeFilter);
 
   const stats = {
-    total: complaints.length,
-    pending: complaints.filter(c => c.status === 'Pending').length,
-    inProgress: complaints.filter(c => c.status === 'In Progress').length,
-    resolved: complaints.filter(c => c.status === 'Resolved').length,
+    total: complaints.filter(c => {
+      const cId = c.studentId?._id || c.studentId;
+      return cId === studentId;
+    }).length,
+    pending: complaints.filter(c => {
+      const cId = c.studentId?._id || c.studentId;
+      return cId === studentId && c.status === 'Pending';
+    }).length,
+    inProgress: complaints.filter(c => {
+      const cId = c.studentId?._id || c.studentId;
+      return cId === studentId && c.status === 'In Progress';
+    }).length,
+    resolved: complaints.filter(c => {
+      const cId = c.studentId?._id || c.studentId;
+      return cId === studentId && c.status === 'Resolved';
+    }).length,
   };
 
   return (
@@ -59,15 +92,41 @@ export function StudentComplaints() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">My Complaints</h1>
-          <p className="text-muted-foreground mt-1">Submit and track your hostel complaints.</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {activeTab === 'my' ? 'My Complaints' : 'Community Complaints'}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {activeTab === 'my' ? 'Submit and track your hostel complaints.' : 'View issues reported by other students in the hostel.'}
+          </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-        >
-          <Plus size={18} /> New Complaint
-        </button>
+        <div className="flex gap-3">
+          <div className="bg-muted/50 p-1 rounded-xl flex gap-1 border border-border/50">
+            <button
+              onClick={() => setActiveTab('my')}
+              className={cn(
+                "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                activeTab === 'my' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              My Issues
+            </button>
+            <button
+              onClick={() => setActiveTab('all')}
+              className={cn(
+                "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                activeTab === 'all' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Community
+            </button>
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+          >
+            <Plus size={18} /> New Report
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -133,17 +192,17 @@ export function StudentComplaints() {
       ) : (
         <div className="space-y-3">
           {filtered.map(complaint => (
-            <div key={complaint.id} className="glass-card p-5 hover:border-primary/30 transition-all">
+            <div key={complaint._id} className="glass-card p-5 hover:border-primary/30 transition-all">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-xs font-mono text-muted-foreground">{complaint.id}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{complaint._id.substring(complaint._id.length - 8)}</span>
                     <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">{complaint.category}</span>
                     <span className={cn(
                       'text-[10px] font-bold px-2 py-0.5 rounded uppercase',
                       complaint.priority === 'High' ? 'bg-destructive/10 text-destructive' :
-                      complaint.priority === 'Medium' ? 'bg-amber-500/10 text-amber-600' :
-                      'bg-emerald-500/10 text-emerald-600'
+                        complaint.priority === 'Medium' ? 'bg-amber-500/10 text-amber-600' :
+                          'bg-emerald-500/10 text-emerald-600'
                     )}>{complaint.priority}</span>
                   </div>
                   <h3 className="font-semibold text-foreground">{complaint.title}</h3>
@@ -258,7 +317,7 @@ export function StudentComplaints() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center">
-              <h2 className="text-xl font-bold">{viewingComplaint.id}</h2>
+              <h2 className="text-xl font-bold">{viewingComplaint._id.substring(viewingComplaint._id.length - 8)}</h2>
               <button onClick={() => setViewingComplaint(null)} className="p-2 hover:bg-muted rounded-full">
                 <X size={20} />
               </button>
@@ -269,8 +328,8 @@ export function StudentComplaints() {
                 <span className={cn(
                   'text-[10px] font-bold px-2 py-0.5 rounded uppercase',
                   viewingComplaint.priority === 'High' ? 'bg-destructive/10 text-destructive' :
-                  viewingComplaint.priority === 'Medium' ? 'bg-amber-500/10 text-amber-600' :
-                  'bg-emerald-500/10 text-emerald-600'
+                    viewingComplaint.priority === 'Medium' ? 'bg-amber-500/10 text-amber-600' :
+                      'bg-emerald-500/10 text-emerald-600'
                 )}>{viewingComplaint.priority} Priority</span>
               </div>
               <h3 className="text-lg font-semibold">{viewingComplaint.title}</h3>

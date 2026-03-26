@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Clock, CheckCircle, Search, Filter, PhoneCall, Check, MessageSquare } from 'lucide-react';
-import { getEmergencies, updateEmergencyStatus, EMERGENCY_STATUSES } from '../services/emergencyStore';
-import { getStudentAllotment } from '../services/roomStore';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Clock, CheckCircle, Search, Filter, PhoneCall, Check, X, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 import { StatusBadge } from '../components/StatusBadge';
 import { cn } from '../lib/utils';
 
 export function EmergencyManagement() {
-  const [emergencies, setEmergencies] = useState(getEmergencies());
+  const [emergencies, setEmergencies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('Active');
@@ -15,29 +15,42 @@ export function EmergencyManagement() {
   const [remarks, setRemarks] = useState('');
   const [status, setStatus] = useState('In Progress');
 
-  const handleUpdate = (e) => {
+  const loadEmergencies = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.get('/emergencies');
+      setEmergencies(data);
+    } catch (err) {
+      console.error("Failed to load emergencies", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmergencies();
+  }, []);
+
+  const handleUpdate = async (e) => {
     e.preventDefault();
     if (!selectedEmergency) return;
 
-    const updated = updateEmergencyStatus(selectedEmergency.id, status, remarks);
-    setEmergencies(updated);
-    setSelectedEmergency(null);
-    setRemarks('');
+    try {
+      await api.patch(`/emergencies/${selectedEmergency._id}`, { status, remarks });
+      loadEmergencies();
+      setSelectedEmergency(null);
+      setRemarks('');
+    } catch (err) {
+      alert("Failed to update status");
+    }
   };
 
-  const getRoomInfo = (studentId) => {
-    const allotment = getStudentAllotment(studentId);
-    if (!allotment) return { room: 'N/A', block: 'N/A' };
-    return {
-      room: allotment.room?.number || 'N/A',
-      block: allotment.room?.number?.charAt(0) || 'N/A'
-    };
-  };
-
-  const filteredEmergencies = emergencies.filter(em => {
-    const matchesSearch = 
-      em.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      em.studentId?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredEmergencies = (emergencies || []).filter(em => {
+    const studentName = (em.studentId?.name || em.studentName || '').toLowerCase();
+    const studentCustomId = (em.studentId?.customId || em.studentId || '').toString().toLowerCase();
+    const matchesSearch = studentName.includes(searchTerm.toLowerCase()) || 
+                          studentCustomId.includes(searchTerm.toLowerCase());
+    
     const matchesType = filterType === 'All' || em.type === filterType;
     const matchesStatus = 
       filterStatus === 'All' ? true : 
@@ -79,6 +92,9 @@ export function EmergencyManagement() {
              <option value="Medical">Medical</option>
              <option value="Security">Security</option>
              <option value="Fire">Fire</option>
+             <option value="Plumbing">Plumbing</option>
+             <option value="Electrical">Electrical</option>
+             <option value="Other">Other</option>
            </select>
            <select 
              value={filterStatus} 
@@ -88,76 +104,77 @@ export function EmergencyManagement() {
              <option value="All">All Statuses</option>
              <option value="Active">Active Only</option>
              <option value="Pending">Pending</option>
+             <option value="In Progress">In Progress</option>
              <option value="Resolved">Resolved</option>
+             <option value="False Alarm">False Alarm</option>
            </select>
          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {filteredEmergencies.length > 0 ? (
-           filteredEmergencies.map(em => {
-             const roomData = getRoomInfo(em.studentId);
-             const isActive = em.status !== 'Resolved' && em.status !== 'False Alarm';
+        {isLoading ? (
+          <div className="col-span-full py-12 flex justify-center">
+            <Loader2 size={48} className="animate-spin text-primary" />
+          </div>
+        ) : filteredEmergencies.length > 0 ? (
+            filteredEmergencies.map(em => {
+              const isActive = em.status !== 'Resolved' && em.status !== 'False Alarm';
 
-             return (
-               <div key={em.id} className={cn(
-                 "glass-card p-6 border relative transition-all group hover:shadow-lg",
-                 isActive ? "border-destructive/40 bg-destructive/5 shadow-destructive/10" : "border-border/50 bg-muted/10 opacity-70"
-               )}>
-                 {isActive && <div className="absolute top-0 left-0  h-full bg-destructive animate-pulse" />}
-                 
-                 <div className="flex justify-between items-start mb-4">
-                   <div>
-                     <span className={cn(
-                        "px-2 py-0.5 rounded-md text-[10px] uppercase font-black tracking-wider",
-                        em.type === 'Medical' ? "bg-red-500/10 text-red-600" :
-                        em.type === 'Security' ? "bg-blue-500/10 text-blue-600" :
-                        "bg-amber-500/10 text-amber-600"
-                     )}>
-                        {em.type} Emergency
-                     </span>
-                     <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                       <Clock size={10} /> {new Date(em.createdAt).toLocaleString()}
+              return (
+                <div key={em._id} className={cn(
+                  "glass-card p-6 border relative transition-all group hover:shadow-lg",
+                  isActive ? "border-destructive/40 bg-destructive/5 shadow-destructive/10" : "border-border/50 bg-muted/10 opacity-70"
+                )}>
+                  {isActive && <div className="absolute top-0 left-0  h-full bg-destructive animate-pulse" />}
+                  
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className={cn(
+                         "px-2 py-0.5 rounded-md text-[10px] uppercase font-black tracking-wider",
+                         em.type === 'Medical' ? "bg-red-500/10 text-red-600" :
+                         em.type === 'Security' ? "bg-blue-500/10 text-blue-600" :
+                         "bg-amber-500/10 text-amber-600"
+                      )}>
+                         {em.type} Emergency
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-semibold">
+                        <Clock size={12} /> {new Date(em.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <StatusBadge status={em.status} />
+                  </div>
+
+                  <div className="bg-background/80 p-4 rounded-xl border border-border/50 mb-4 space-y-3">
+                     <div className="flex justify-between items-center pb-3 border-b border-border/30">
+                        <div>
+                           <p className="font-bold text-sm text-foreground">{em.studentId?.name || em.studentName || 'Unknown Student'}</p>
+                           <p className="text-[10px] text-muted-foreground uppercase font-medium">{em.studentId?.customId || 'N/A'} • Room {em.room}</p>
+                        </div>
+                     </div>
+                     <p className="text-sm text-foreground/80 font-medium">
+                        {em.description || <span className="italic text-muted-foreground/50">No detailed description.</span>}
                      </p>
-                   </div>
-                   <StatusBadge status={em.status} />
-                 </div>
+                  </div>
 
-                 <div className="bg-background/80 p-4 rounded-xl border border-border/50 mb-4 space-y-3">
-                    <div className="flex justify-between items-center pb-3 border-b border-border/30">
-                       <div>
-                          <p className="font-bold text-sm text-foreground">{em.student?.name || em.studentId}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase font-medium">{em.studentId} • {em.student?.course || 'Student'}</p>
-                       </div>
-                       <div className="text-right">
-                          <p className="font-black text-lg text-primary">{roomData.room}</p>
-                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Block {roomData.block}</p>
-                       </div>
-                    </div>
-                    <p className="text-sm text-foreground/80 font-medium">
-                       {em.description || <span className="italic text-muted-foreground/50">No detailed description.</span>}
-                    </p>
-                 </div>
+                  {em.remarks && (
+                     <div className="mb-4">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Last Warden Remarks</p>
+                        <p className="text-xs text-foreground/70 bg-muted p-2 rounded-lg italic">{em.remarks}</p>
+                     </div>
+                  )}
 
-                 {em.remarks && (
-                    <div className="mb-4">
-                       <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Last Warden Remarks</p>
-                       <p className="text-xs text-foreground/70 bg-muted p-2 rounded-lg italic">{em.remarks}</p>
-                    </div>
-                 )}
-
-                 {isActive && (
-                    <button 
-                      onClick={() => { setSelectedEmergency(em); setStatus(em.status === 'Pending' ? 'In Progress' : 'Resolved'); }}
-                      className="w-full py-2.5 bg-destructive text-destructive-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-destructive/90 transition-all shadow-sm"
-                    >
-                       <PhoneCall size={16} /> Manage Response
-                    </button>
-                 )}
-               </div>
-             )
-           })
-        ) : (
+                  {isActive && (
+                     <button 
+                       onClick={() => { setSelectedEmergency(em); setStatus(em.status === 'Pending' ? 'In Progress' : 'Resolved'); }}
+                       className="w-full py-2.5 bg-destructive text-destructive-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-destructive/90 transition-all shadow-sm"
+                     >
+                        <PhoneCall size={16} /> Manage Response
+                     </button>
+                  )}
+                </div>
+              )
+            })
+         ) : (
           <div className="col-span-1 lg:col-span-2 xl:col-span-3 p-12 text-center rounded-2xl border-2 border-dashed border-border/40">
             <CheckCircle size={48} className="mx-auto text-emerald-500/50 mb-4" />
             <p className="text-lg font-bold text-foreground">All Clear</p>
@@ -171,8 +188,9 @@ export function EmergencyManagement() {
             <div className="glass-card w-full max-w-md overflow-hidden border border-border shadow-2xl">
                <div className="p-5 border-b border-border bg-destructive/10 text-destructive flex justify-between items-center">
                   <h3 className="font-bold flex items-center gap-2">
-                     <AlertTriangle size={18} /> Update Emergency #{selectedEmergency.id}
+                     <AlertTriangle size={18} /> Update Emergency #{selectedEmergency._id.substring(selectedEmergency._id.length - 6)}
                   </h3>
+                  <button onClick={() => setSelectedEmergency(null)} className="p-1 hover:bg-muted rounded-lg transition-colors"><X size={20} /></button>
                </div>
                
                <form onSubmit={handleUpdate} className="p-6 space-y-4">
@@ -183,7 +201,10 @@ export function EmergencyManagement() {
                        onChange={(e) => setStatus(e.target.value)}
                        className="w-full h-11 px-3 rounded-xl border border-border bg-background font-bold outline-none"
                      >
-                        {EMERGENCY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="False Alarm">False Alarm</option>
                      </select>
                   </div>
 

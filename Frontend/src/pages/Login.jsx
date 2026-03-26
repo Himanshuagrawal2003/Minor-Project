@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FormInput } from '../components/FormInput';
-import { ShieldCheck, User, UserCheck, Star, Wrench, Building2, ArrowRight } from 'lucide-react';
+import { ShieldCheck, User, UserCheck, Star, Wrench, Building2, ArrowRight, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api } from '../services/api';
 
 export function Login() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const roles = [
     { id: 'student', label: 'Student', icon: User, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500', ring: 'ring-blue-500/50' },
@@ -19,21 +21,65 @@ export function Login() {
     { id: 'admin', label: 'Admin', icon: ShieldCheck, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary', ring: 'ring-primary/50' },
   ];
 
-  // Pre-fill dummy credentials based on selected role
+  // Redirect if already logged in
   React.useEffect(() => {
-    setEmail(`${selectedRole}@hostel.com`);
-    setPassword(`${selectedRole}123`);
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (token && role) {
+      navigate(`/${role}/dashboard`);
+    }
+  }, [navigate]);
+
+  // Pre-fill credentials based on selected role
+  React.useEffect(() => {
+    // Only pre-fill if fields are basically empty or default-looking
+    const isDeafultEmail = email === '' || email.includes('@hostel.com') || email === 'admin@gmail.com';
+    
+    if (isDeafultEmail) {
+      if (selectedRole === 'admin') {
+        setEmail('admin@gmail.com');
+        setPassword('123456');
+      } else {
+        setEmail(`${selectedRole}@hostel.com`);
+        setPassword(`${selectedRole}123`);
+      }
+    }
   }, [selectedRole]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      localStorage.setItem('role', selectedRole);
-      navigate(`/${selectedRole}/dashboard`);
-    }, 1000);
+    setError('');
+
+    try {
+      // Using /users/login as it supports both email and contact
+      const res = await api.post('/users/login', {
+        email,
+        password,
+        role: selectedRole
+      });
+
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('role', res.role);
+      localStorage.setItem('name', res.name);
+      localStorage.setItem('userID', res._id);
+      localStorage.setItem('isProfileComplete', res.isProfileComplete);
+      localStorage.setItem('roomNumber', res.roomNumber || '');
+      localStorage.setItem('block', res.block || '');
+      localStorage.setItem('messId', res.messId || '');
+
+      // Redirect based on profile completeness for all roles
+      if (!res.isProfileComplete || res.isProfileComplete === 'false') {
+        navigate(`/${res.role}/profile?complete=true`);
+      } else {
+        const dashboardPath = `/${res.role}/dashboard`;
+        navigate(dashboardPath);
+      }
+    } catch (err) {
+      setError(err?.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const activeRoleConfig = roles.find(r => r.id === selectedRole);
@@ -60,7 +106,7 @@ export function Login() {
 
           <div className="space-y-6">
             <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight">
-              Manage your hostel <br/>
+              Manage your hostel <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-500">intelligently.</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-md leading-relaxed">
@@ -72,7 +118,7 @@ export function Login() {
         <div className="relative z-10 glass-card p-6 rounded-2xl mt-12 backdrop-blur-md bg-background/40">
           <div className="flex gap-4 items-start">
             <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl shrink-0 mt-1">
-               <UserCheck size={24} />
+              <UserCheck size={24} />
             </div>
             <div>
               <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
@@ -87,7 +133,7 @@ export function Login() {
       {/* Right side - Login Form */}
       <div className="w-full md:w-1/2 lg:w-7/12 flex items-center justify-center p-6 sm:p-12 relative">
         <div className="w-full max-w-[440px] animate-in fade-in slide-in-from-bottom-8 duration-700">
-          
+
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 md:hidden justify-center">
             <div className="bg-primary text-primary-foreground p-2 rounded-xl shadow-lg shadow-primary/20">
@@ -113,15 +159,15 @@ export function Login() {
                 className={cn(
                   "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-200",
                   "hover:bg-muted/50",
-                  selectedRole === role.id 
-                    ? `border-transparent ring-2 ${role.ring} ${role.bg} shadow-sm scale-[1.02]` 
+                  selectedRole === role.id
+                    ? `border-transparent ring-2 ${role.ring} ${role.bg} shadow-sm scale-[1.02]`
                     : "border-border/60 bg-transparent text-muted-foreground"
                 )}
               >
-                <role.icon 
-                  size={24} 
+                <role.icon
+                  size={24}
                   strokeWidth={selectedRole === role.id ? 2.5 : 2}
-                  className={cn("transition-colors duration-200", selectedRole === role.id ? role.color : "")} 
+                  className={cn("transition-colors duration-200", selectedRole === role.id ? role.color : "")}
                 />
                 <span className={cn(
                   "text-[11px] font-semibold tracking-wide uppercase transition-colors duration-200",
@@ -139,49 +185,57 @@ export function Login() {
             activeRoleConfig?.border
           )}>
             <div className="flex items-center gap-3 mb-6 pb-6 border-b border-border/50">
-               <div className={cn("p-2.5 rounded-xl border", activeRoleConfig?.bg, activeRoleConfig?.color, activeRoleConfig?.border, "border-opacity-20")}>
-                  {activeRoleConfig && <activeRoleConfig.icon size={20} />}
-               </div>
-               <div>
-                 <h3 className="font-semibold text-lg">{activeRoleConfig?.label} Sign In</h3>
-                 <p className="text-sm text-muted-foreground leading-none mt-1">
-                   {selectedRole === 'student' && 'Access complaints & menu'}
-                   {selectedRole === 'warden' && 'Manage student requests'}
-                   {selectedRole === 'staff' && 'View assigned tasks'}
-                   {selectedRole === 'chief-warden' && 'Monitor hostel operations'}
-                   {selectedRole === 'admin' && 'System administration'}
-                 </p>
-               </div>
+              <div className={cn("p-2.5 rounded-xl border", activeRoleConfig?.bg, activeRoleConfig?.color, activeRoleConfig?.border, "border-opacity-20")}>
+                {activeRoleConfig && <activeRoleConfig.icon size={20} />}
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">{activeRoleConfig?.label} Sign In</h3>
+                <p className="text-sm text-muted-foreground leading-none mt-1">
+                  {selectedRole === 'student' && 'Access complaints & menu'}
+                  {selectedRole === 'warden' && 'Manage student requests'}
+                  {selectedRole === 'staff' && 'View assigned tasks'}
+                  {selectedRole === 'chief-warden' && 'Monitor hostel operations'}
+                  {selectedRole === 'admin' && 'System administration'}
+                </p>
+              </div>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
-              <FormInput 
-                label={`${activeRoleConfig?.label} ID or Email`} 
-                type="email" 
+              {error && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    {error}
+                  </div>
+                </div>
+              )}
+              <FormInput
+                label={`${activeRoleConfig?.label} ID or Email`}
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={`example@hostel.com`}
+                placeholder={`Enter your ID or Email`}
                 required
               />
-              <FormInput 
-                label="Password" 
-                type="password" 
+              <FormInput
+                label="Password"
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
               />
-              
+
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm mt-2">
                 <label className="flex items-center gap-2 cursor-pointer w-fit">
                   <input type="checkbox" className={cn("rounded border-input focus:ring-opacity-50", `text-${activeRoleConfig?.color.split('-')[1]}-500`, `focus:ring-${activeRoleConfig?.color.split('-')[1]}-500`)} />
                   <span className="text-muted-foreground select-none">Remember me</span>
                 </label>
-                <Link to="/forgot-password" className={cn("font-medium hover:underline", activeRoleConfig?.color)}>Forgot password?</Link>
+                <Link to="/forgot-password" state={{ role: selectedRole }} className={cn("font-medium hover:underline", activeRoleConfig?.color)}>Forgot password?</Link>
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isLoading}
                 className={cn(
                   "w-full h-12 mt-6 flex items-center justify-center gap-2 font-semibold rounded-xl text-white transition-all shadow-md active:scale-[0.98] disabled:opacity-70",
@@ -200,7 +254,7 @@ export function Login() {
               </button>
             </form>
           </div>
-          
+
         </div>
       </div>
     </div>

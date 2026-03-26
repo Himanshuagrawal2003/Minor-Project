@@ -5,10 +5,11 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from '../components/StatusBadge';
-import { getComplaints, updateComplaint, STATUSES, MOCK_STAFF } from '../services/complaintStore';
+import { api } from '../services/api';
 
 export function ComplaintsManagement() {
   const [complaints, setComplaints] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -16,38 +17,84 @@ export function ComplaintsManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [editFields, setEditFields] = useState({ status: '', remarks: '', assignedStaffId: '' });
+  const [updatingStatus, setUpdatingStatus] = useState({}); // Tracking loading per complaint ID
 
   const userRole = localStorage.getItem('role');
 
-  const loadComplaints = () => {
-    setComplaints(getComplaints());
+  const loadComplaints = async () => {
+    try {
+      const data = await api.get('/complaints');
+      setComplaints(data);
+    } catch (err) {
+      console.error("Failed to load complaints", err);
+    }
   };
 
-  useEffect(() => { loadComplaints(); }, []);
+  const loadStaff = async () => {
+    try {
+      const data = await api.get('/complaints/staff');
+      setStaffList(data);
+    } catch (err) {
+      console.error("Failed to load staff", err);
+    }
+  };
+
+  useEffect(() => {
+    loadComplaints();
+    if (userRole !== 'student') loadStaff();
+  }, []);
 
   const openView = (complaint) => {
     setViewingComplaint(complaint);
-    setEditFields({ status: complaint.status, remarks: complaint.remarks || '', assignedStaffId: complaint.assignedStaffId || '' });
+    setEditFields({ 
+      status: complaint.status, 
+      remarks: complaint.remarks || '', 
+      assignedStaffId: complaint.assignedStaffId || '' 
+    });
     setMessage({ type: '', text: '' });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      const updated = updateComplaint(viewingComplaint.id, editFields);
-      setComplaints(updated);
+    setMessage({ type: '', text: '' });
+    try {
+      await api.patch(`/complaints/${viewingComplaint._id}`, editFields);
       setViewingComplaint(prev => ({ ...prev, ...editFields }));
       setMessage({ type: 'success', text: 'Complaint updated successfully!' });
-      setIsSaving(false);
       loadComplaints();
-    }, 600);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to update complaint.' });
+    } finally {
+      setIsSaving(false);
+    }
   };
+  
+  const handleQuickStatusChange = async (complaintId, newStatus) => {
+    setUpdatingStatus(prev => ({ ...prev, [complaintId]: true }));
+    try {
+      await api.patch(`/complaints/${complaintId}`, { status: newStatus });
+      loadComplaints();
+    } catch (err) {
+      console.error("Failed to update status", err);
+      alert("Failed to update status: " + err.message);
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [complaintId]: false }));
+    }
+  };
+
+  const STATUSES = ['Pending', 'In Progress', 'Escalated', 'Resolved', 'Rejected'];
 
   const categories = ['All', ...new Set(complaints.map(c => c.category))];
   const filtered = complaints.filter(c => {
-    const matchSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const studentName = (c.studentId?.name || c.studentName || '').toLowerCase();
+    const studentCustomId = (c.studentId?.customId || '').toLowerCase();
+    const title = (c.title || '').toLowerCase();
+    const id = (c._id || '').toLowerCase();
+
+    const matchSearch = title.includes(searchQuery.toLowerCase()) ||
+                        studentName.includes(searchQuery.toLowerCase()) ||
+                        studentCustomId.includes(searchQuery.toLowerCase()) ||
+                        id.includes(searchQuery.toLowerCase());
     const matchStatus = filterStatus === 'All' || c.status === filterStatus;
     const matchCat = filterCategory === 'All' || c.category === filterCategory;
     return matchSearch && matchStatus && matchCat;
@@ -130,7 +177,7 @@ export function ComplaintsManagement() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-xs font-mono text-muted-foreground">{complaint.id}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{complaint._id.substring(complaint._id.length - 8)}</span>
                     <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">{complaint.category}</span>
                     <span className={cn(
                       'text-[10px] font-bold px-2 py-0.5 rounded uppercase',
@@ -141,11 +188,12 @@ export function ComplaintsManagement() {
                   </div>
                   <h3 className="font-semibold">{complaint.title}</h3>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                    <span>👤 {complaint.studentName}</span>
-                    <span>🚪 Room {complaint.room}</span>
+                    <span>👤 {complaint.studentId?.name || complaint.studentName}</span>
+                    <span>🆔 {complaint.studentId?.customId || 'N/A'}</span>
+                    <span>🚪 Room {complaint.studentId?.roomNumber || complaint.room}</span>
                     <span>📅 {new Date(complaint.createdAt).toLocaleDateString()}</span>
                     {complaint.assignedStaffId && (() => {
-                      const staff = MOCK_STAFF.find(s => s.id === complaint.assignedStaffId);
+                      const staff = staffList.find(s => s._id === complaint.assignedStaffId);
                       return staff ? (
                         <span className="bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full font-semibold">
                           🔧 Assigned: {staff.name}
@@ -158,7 +206,12 @@ export function ComplaintsManagement() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <StatusBadge status={complaint.status} />
+                  <StatusBadge 
+                    status={complaint.status} 
+                    onStatusChange={userRole !== 'student' ? (val) => handleQuickStatusChange(complaint._id, val) : null}
+                    options={STATUSES}
+                    isLoading={updatingStatus[complaint._id]}
+                  />
                   <button
                     onClick={() => openView(complaint)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold rounded-lg transition-all"
@@ -177,7 +230,7 @@ export function ComplaintsManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center">
-              <h2 className="text-xl font-bold">{viewingComplaint.id}</h2>
+              <h2 className="text-xl font-bold">{viewingComplaint._id.substring(viewingComplaint._id.length - 8)}</h2>
               <button onClick={() => setViewingComplaint(null)} className="p-2 hover:bg-muted rounded-full">
                 <X size={20} />
               </button>
@@ -226,9 +279,9 @@ export function ComplaintsManagement() {
                     onChange={e => setEditFields({ ...editFields, assignedStaffId: e.target.value })}
                   >
                     <option value="">— Unassigned —</option>
-                    {MOCK_STAFF.map(staff => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name} ({staff.specialty})
+                    {staffList.map(staff => (
+                      <option key={staff._id} value={staff._id}>
+                        {staff.name} {staff.extra ? `(${staff.extra})` : ''}
                       </option>
                     ))}
                   </select>

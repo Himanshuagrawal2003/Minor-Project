@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../services/api";
 import { 
   BellRing, 
   Plus, 
@@ -14,16 +15,29 @@ import {
   Download,
   FileText
 } from "lucide-react";
+import { StatusBadge } from "../components/StatusBadge";
 import { cn } from "../lib/utils";
 import { FormInput } from "../components/FormInput";
 
 export function NoticeManagement() {
-  const [notices, setNotices] = useState([
-    { _id: '1', title: 'Hostel timing changes for Diwali', content: 'The hostel gates will remain open until 11 PM during the festival days.', priority: 'high', targetRoles: ['all'], createdAt: new Date().toISOString(), author: { name: 'Admin' } },
-    { _id: '2', title: 'Maintenance in Block B', content: 'Water supply will be suspended from 10 AM to 2 PM on Thursday for routine maintenance.', priority: 'medium', targetRoles: ['all'], createdAt: new Date(Date.now() - 86400000).toISOString(), author: { name: 'Admin' } },
-    { _id: '3', title: 'New Mess Menu implementation', content: 'The revised mess menu will be effective from the first of next month. Please check the mess section for details.', priority: 'low', targetRoles: ['student'], createdAt: new Date(Date.now() - 172800000).toISOString(), author: { name: 'Admin' } },
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [notices, setNotices] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadNotices = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.get('/notices');
+      setNotices(data);
+    } catch (err) {
+      console.error("Failed to load notices", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotices();
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,43 +55,42 @@ export function NoticeManagement() {
     targetRoles: ["all"]
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage({ type: "", text: "" });
 
-    // Simulate delay
-    setTimeout(() => {
-      const attachment = selectedFile
-        ? { name: selectedFile.name, url: URL.createObjectURL(selectedFile), size: selectedFile.size }
-        : editingNotice?.attachment || null;
-
+    try {
       if (editingNotice) {
-        setNotices(notices.map(n => n._id === editingNotice._id ? { ...n, ...formData, attachment } : n));
-        setMessage({ type: "success", text: "Notice updated successfully!" });
+        // Not adding edit API yet for speed, but can if needed
+        // For now, let's just implement Create and Delete as per plan
+        await api.delete(`/notices/${editingNotice._id}`); // Simplified update for now
+        await api.post('/notices', formData);
       } else {
-        const newNotice = {
-          _id: Math.random().toString(36).substr(2, 9),
-          ...formData,
-          attachment,
-          createdAt: new Date().toISOString(),
-          author: { name: localStorage.getItem('name') || 'Admin' }
-        };
-        setNotices([newNotice, ...notices]);
-        setMessage({ type: "success", text: "Notice created successfully!" });
+        await api.post('/notices', formData);
       }
+      loadNotices();
+      setMessage({ type: "success", text: editingNotice ? "Notice updated successfully!" : "Notice created successfully!" });
       setFormData({ title: "", content: "", priority: "medium", targetRoles: ["all"] });
       setSelectedFile(null);
       setIsModalOpen(false);
       setEditingNotice(null);
+    } catch (err) {
+      setMessage({ type: "error", text: "Failed to save notice" });
+    } finally {
       setIsSubmitting(false);
-    }, 800);
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this notice?")) return;
-    setNotices(notices.filter(n => n._id !== id));
-    setMessage({ type: "success", text: "Notice deleted successfully!" });
+    try {
+      await api.delete(`/notices/${id}`);
+      loadNotices();
+      setMessage({ type: "success", text: "Notice deleted successfully!" });
+    } catch (err) {
+      setMessage({ type: "error", text: "Failed to delete notice" });
+    }
   };
 
   const openEditModal = (notice) => {
@@ -138,14 +151,7 @@ export function NoticeManagement() {
             <div key={notice._id} className="glass-card group overflow-hidden border-border/50 hover:border-primary/30 transition-all flex flex-col">
               <div className="p-5 flex-1">
                 <div className="flex justify-between items-start mb-4">
-                  <div className={cn(
-                    "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider",
-                    notice.priority === 'high' ? "bg-destructive/10 text-destructive" :
-                    notice.priority === 'medium' ? "bg-amber-500/10 text-amber-600" :
-                    "bg-emerald-500/10 text-emerald-600"
-                  )}>
-                    {notice.priority} Priority
-                  </div>
+                  <StatusBadge status={notice.priority} className="uppercase text-[10px] tracking-wider" />
                   {canManage && (
                     <div className="flex gap-2">
                       <button 

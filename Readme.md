@@ -61,8 +61,8 @@ The system helps students submit complaints and requests while hostel authoritie
 ```
 hostel-management-system
 │
-├── client
-├── server
+├── Backend
+├── Frontend
 └── README.md
 ```
 
@@ -73,18 +73,18 @@ hostel-management-system
 Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/hostel-management-system.git
+git clone https://github.com/Himanshuagrawal2003/Minor-Project.git
 ```
 
 Install dependencies
 
 ```bash
-cd server
-npm install
+cd frontend
+npm run dev
 ```
 
 ```bash
-cd client
+cd backend
 npm install
 ```
 

@@ -1,37 +1,171 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Building2, ShieldCheck, Key, Camera, Check } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, MapPin, Building2, ShieldCheck, Key, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { FormInput } from '../components/FormInput';
 import { cn } from '../lib/utils';
-import { DashboardCard } from '../components/DashboardCard';
+import { api } from '../services/api';
 
 export function Profile() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isCompletionMode = searchParams.get('complete') === 'true';
   const role = localStorage.getItem('role') || 'student';
-  const [isEditing, setIsEditing] = useState(false);
+  
+  const [isEditing, setIsEditing] = useState(isCompletionMode);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState({ type: '', text: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   
-  // Dummy data based on role
   const [profileData, setProfileData] = useState({
-    name: role.charAt(0).toUpperCase() + role.slice(1) + ' User',
-    email: `${role}@lumina.hostel.com`,
-    phone: '+91 98765 43210',
-    department: role === 'student' ? 'Computer Science' : 'Hostel Administration',
-    id: role === 'student' ? 'STU-2023-045' : role.toUpperCase() + '-001',
-    address: '123, Hostel Lane, Campus Valley',
-    room: role === 'student' ? 'B-204' : 'Office 101',
-    bio: 'Dedicated to maintaining a great hostel environment.'
+    name: '',
+    email: '',
+    phone: '',
+    department: '',
+    id: '',
+    address: '',
+    room: '',
+    course: '',
+    block: '',
+    bio: ''
   });
 
+  const [rooms, setRooms] = useState([]);
   const [formData, setFormData] = useState(profileData);
 
-  const handleSave = () => {
-    setProfileData(formData);
-    setIsEditing(false);
-    // Add a small toast or notification logic here if needed
+  const fetchProfile = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.get('/users/profile');
+      const formattedData = {
+        ...data,
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.contact || '',
+        department: data.department || '',
+        id: data.customId || '',
+        address: data.address || '',
+        room: data.roomNumber || '',
+        course: data.course || '',
+        block: data.block || '',
+        bio: data.bio || ''
+      };
+      setProfileData(formattedData);
+      setFormData(formattedData);
+
+      const roomRes = await api.get('/rooms');
+      setRooms(roomRes.rooms || []);
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+      setMessage({ type: 'error', text: 'Failed to load profile data.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const uniqueBlocks = [...new Set(rooms.map(r => r.block))].sort();
+  const availableRoomsInBlock = rooms.filter(r => r.block === formData.block);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const updateData = {
+        contact: formData.phone,
+        course: formData.course,
+        block: formData.block,
+        department: formData.department,
+        roomNumber: formData.room,
+        address: formData.address,
+        bio: formData.bio
+      };
+      const res = await api.patch('/users/update-profile', updateData);
+      
+      // Update local storage for immediate UI reflect in other components
+      localStorage.setItem('isProfileComplete', 'true');
+      localStorage.setItem('roomNumber', res.roomNumber || '');
+      localStorage.setItem('block', res.block || '');
+      localStorage.setItem('messId', res.messId || '');
+      
+      const newProfile = {
+        ...res,
+        phone: res.contact,
+        room: res.roomNumber,
+        id: res.customId
+      };
+      setProfileData(newProfile);
+      setIsEditing(false);
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      
+      if (isCompletionMode) {
+        setTimeout(() => navigate(`/${role}/dashboard`), 1500);
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to update profile.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (passwords.new !== passwords.confirm) {
+        setMessage({ type: 'error', text: 'Passwords do not match.' });
+        return;
+    }
+    setIsSaving(true);
+    try {
+        await api.post('/users/change-password', {
+            currentPassword: passwords.current,
+            newPassword: passwords.new
+        });
+        setMessage({ type: 'success', text: 'Password changed successfully!' });
+        setIsChangingPassword(false);
+        setPasswords({ current: '', new: '', confirm: '' });
+    } catch (err) {
+        setMessage({ type: 'error', text: err.message || 'Failed to change password.' });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-10">
+      {isCompletionMode && (
+        <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="bg-primary/20 p-2 rounded-lg">
+            <AlertCircle className="text-primary" size={20} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-primary">Complete Your Profile</h2>
+            <p className="text-sm text-primary/80">Welcome! Since this is your first login, please provide your hostel and academic details below to access the full system.</p>
+          </div>
+        </div>
+      )}
+
+      {message.text && (
+        <div className={cn(
+          "p-4 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-top-2",
+          message.type === 'success' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-destructive/10 border-destructive/20 text-destructive"
+        )}>
+          {message.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
+          <p className="text-sm font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
@@ -40,17 +174,21 @@ export function Profile() {
         <div className="flex items-center gap-3">
           {isEditing ? (
             <>
-              <button 
-                onClick={() => { setIsEditing(false); setFormData(profileData); }}
-                className="px-4 py-2 border border-border flex items-center gap-2 rounded-lg hover:bg-muted transition-all font-medium"
-              >
-                Cancel
-              </button>
+              {!isCompletionMode && (
+                <button 
+                  onClick={() => { setIsEditing(false); setFormData(profileData); }}
+                  className="px-4 py-2 border border-border flex items-center gap-2 rounded-lg hover:bg-muted transition-all font-medium"
+                >
+                  Cancel
+                </button>
+              )}
               <button 
                 onClick={handleSave}
-                className="px-4 py-2 bg-primary text-primary-foreground flex items-center gap-2 rounded-lg hover:bg-primary/90 transition-all shadow-sm font-medium"
+                disabled={isSaving}
+                className="px-4 py-2 bg-primary text-primary-foreground flex items-center gap-2 rounded-lg hover:bg-primary/90 transition-all shadow-sm font-bold min-w-[120px] justify-center"
               >
-                <Check size={18} /> Save Changes
+                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                {isCompletionMode ? "Complete Setup" : "Save Changes"}
               </button>
             </>
           ) : (
@@ -73,30 +211,22 @@ export function Profile() {
               <div className="h-24 w-24 rounded-full bg-primary/10 border-4 border-background flex items-center justify-center text-primary shadow-lg overflow-hidden">
                 <User size={40} />
               </div>
-              {isEditing && (
-                <button className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-md hover:scale-105 transition-transform">
-                  <Camera size={14} />
-                </button>
-              )}
             </div>
             <h2 className="text-xl font-bold">{profileData.name}</h2>
             <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full mt-2">
               <ShieldCheck size={14} /> {role.toUpperCase()}
             </div>
             
-            <p className="text-muted-foreground text-sm mt-4 leading-relaxed">
-              {profileData.bio}
-            </p>
           </div>
 
           <div className="glass-card p-6 space-y-4">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Account Status</h3>
             <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/20">
               <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="font-medium text-sm">Active Account</span>
+                <div className={cn("h-2 w-2 rounded-full", profileData.isProfileComplete ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse")}></div>
+                <span className="font-medium text-sm">{profileData.isProfileComplete ? "Active Account" : "Setup Required"}</span>
               </div>
-              <span className="text-xs text-muted-foreground">Since 2026</span>
+              <span className="text-xs text-muted-foreground">Since Oct 2026</span>
             </div>
           </div>
         </div>
@@ -111,10 +241,9 @@ export function Profile() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <FormInput 
                 label="Full Name" 
-                value={isEditing ? formData.name : profileData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                disabled={!isEditing}
-                className={!isEditing ? "opacity-70 bg-muted/30" : ""}
+                value={profileData.name}
+                disabled={true}
+                className="opacity-70 bg-muted/30"
               />
               <FormInput 
                 label="ID Number" 
@@ -125,10 +254,9 @@ export function Profile() {
               <FormInput 
                 label="Email Address" 
                 type="email"
-                value={isEditing ? formData.email : profileData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                disabled={!isEditing}
-                className={!isEditing ? "opacity-70 bg-muted/30" : ""}
+                value={profileData.email}
+                disabled={true}
+                className="opacity-70 bg-muted/30"
                 icon={<Mail size={16} />}
               />
               <FormInput 
@@ -136,31 +264,86 @@ export function Profile() {
                 value={isEditing ? formData.phone : profileData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
                 disabled={!isEditing}
-                className={!isEditing ? "opacity-70 bg-muted/30" : ""}
+                className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
                 icon={<Phone size={16} />}
+                required={isCompletionMode}
               />
               <FormInput 
                 label="Department" 
                 value={isEditing ? formData.department : profileData.department}
                 onChange={(e) => setFormData({...formData, department: e.target.value})}
                 disabled={!isEditing}
-                className={!isEditing ? "opacity-70 bg-muted/30" : ""}
+                className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
+                required={isCompletionMode}
               />
               <FormInput 
-                label={role === 'student' ? "Room Number" : "Office Number"} 
-                value={isEditing ? formData.room : profileData.room}
-                onChange={(e) => setFormData({...formData, room: e.target.value})}
+                label="Course" 
+                value={isEditing ? formData.course : profileData.course}
+                onChange={(e) => setFormData({...formData, course: e.target.value})}
                 disabled={!isEditing}
-                className={!isEditing ? "opacity-70 bg-muted/30" : ""}
-                icon={<Building2 size={16} />}
+                className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
+                required={isCompletionMode}
               />
+              {isEditing && !(role === 'student' && profileData.block) ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Building2 size={16} className="text-muted-foreground" /> Hostel Block
+                  </label>
+                  <select 
+                    value={formData.block}
+                    onChange={(e) => setFormData({...formData, block: e.target.value, room: ''})}
+                    className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
+                    required={isCompletionMode}
+                  >
+                    <option value="">Select Block</option>
+                    {uniqueBlocks.map(b => <option key={b} value={b}>Block {b}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <FormInput 
+                  label="Hostel Block" 
+                  value={isEditing ? formData.block : profileData.block}
+                  disabled={true}
+                  className="opacity-70 bg-muted/30"
+                  icon={<Building2 size={16} />}
+                />
+              )}
+
+              {isEditing && !(role === 'student' && profileData.room) ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Building2 size={16} className="text-muted-foreground" /> Room Number
+                  </label>
+                  <select 
+                    value={formData.room}
+                    onChange={(e) => setFormData({...formData, room: e.target.value})}
+                    disabled={!formData.block}
+                    className={cn(
+                      "flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all",
+                      !formData.block && "opacity-70 bg-muted/30 cursor-not-allowed"
+                    )}
+                    required={isCompletionMode}
+                  >
+                    <option value="">{formData.block ? 'Select Room' : 'Select Block First'}</option>
+                    {availableRoomsInBlock.map(r => <option key={r._id} value={r.number}>{r.number} ({r.capacity} Seater)</option>)}
+                  </select>
+                </div>
+              ) : (
+                <FormInput 
+                  label="Room Number" 
+                  value={isEditing ? formData.room : profileData.room}
+                  disabled={true}
+                  className="opacity-70 bg-muted/30"
+                  icon={<Building2 size={16} />}
+                />
+              )}
               <div className="md:col-span-2">
                 <FormInput 
                   label="Permanent Address" 
                   value={isEditing ? formData.address : profileData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
                   disabled={!isEditing}
-                  className={!isEditing ? "opacity-70 bg-muted/30" : ""}
+                  className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
                   icon={<MapPin size={16} />}
                 />
               </div>
@@ -175,7 +358,7 @@ export function Profile() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-muted/10">
               <div>
                 <h4 className="font-medium">Account Password</h4>
-                <p className="text-sm text-muted-foreground mt-1">Last changed 3 months ago</p>
+                <p className="text-sm text-muted-foreground mt-1">Manage your account security</p>
               </div>
               {!isChangingPassword && (
                 <button 
@@ -188,7 +371,7 @@ export function Profile() {
             </div>
 
             {isChangingPassword && (
-              <div className="mt-4 p-5 rounded-xl border border-border/50 bg-background/50 space-y-4 animate-in fade-in slide-in-from-top-2">
+              <form onSubmit={handlePasswordChange} className="mt-4 p-5 rounded-xl border border-border/50 bg-background/50 space-y-4 animate-in fade-in slide-in-from-top-2">
                 <FormInput
                   label="Current Password"
                   type="password"
@@ -212,6 +395,7 @@ export function Profile() {
                 />
                 <div className="flex items-center gap-3 pt-2">
                   <button 
+                    type="button"
                     onClick={() => {
                         setIsChangingPassword(false);
                         setPasswords({ current: '', new: '', confirm: '' });
@@ -221,17 +405,15 @@ export function Profile() {
                     Cancel
                   </button>
                   <button 
-                    onClick={() => {
-                        setIsChangingPassword(false);
-                        setPasswords({ current: '', new: '', confirm: '' });
-                        alert("Password updated successfully!");
-                    }}
-                    className="px-4 py-2 bg-primary text-primary-foreground flex items-center gap-2 rounded-lg hover:bg-primary/90 transition-all shadow-sm text-sm font-medium"
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-primary text-primary-foreground flex items-center gap-2 rounded-lg hover:bg-primary/90 transition-all shadow-sm text-sm font-medium disabled:opacity-50"
                   >
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
                     Update Password
                   </button>
                 </div>
-              </div>
+              </form>
             )}
           </div>
           

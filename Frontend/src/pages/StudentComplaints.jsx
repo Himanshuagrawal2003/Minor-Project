@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus, AlertCircle, CheckCircle2, MessageSquare, Clock,
-  ChevronDown, Loader2, Eye, X, Send
+  ChevronDown, Loader2, Eye, X, Send, Search
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from '../components/StatusBadge';
+import { DashboardCard } from '../components/DashboardCard';
 import { api } from '../services/api';
 
 export function StudentComplaints() {
@@ -13,10 +14,11 @@ export function StudentComplaints() {
   const [viewingComplaint, setViewingComplaint] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState('my'); // 'my' or 'all'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterCategory, setFilterCategory] = useState('All');
+  // Removed activeTab since 'Community' concept is replaced by 'Hostel Complaints'
 
-  const studentName = localStorage.getItem('name') || 'Student';
   const studentId = localStorage.getItem('userID');
   const studentRoom = localStorage.getItem('roomNumber') || 'Pending';
 
@@ -55,36 +57,28 @@ export function StudentComplaints() {
   const CATEGORIES = ['Electrical', 'Plumbing', 'Internet', 'Cleanliness', 'Furniture', 'Security', 'Mess', 'Other'];
   const PRIORITIES = ['Low', 'Medium', 'High'];
 
-  const filters = ['All', 'Pending', 'In Progress', 'Resolved', 'Rejected'];
-  
-  const baseFiltered = activeTab === 'my' 
-    ? complaints.filter(c => {
-        const cId = c.studentId?._id || c.studentId;
-        return cId === studentId;
-      })
-    : complaints;
+  const STATUSES = ['Pending', 'In Progress', 'Escalated', 'Resolved', 'Rejected'];
 
-  const filtered = activeFilter === 'All' 
-    ? baseFiltered 
-    : baseFiltered.filter(c => c.status === activeFilter);
+  const categoriesDb = ['All', ...new Set(complaints.map(c => c.category))];
+
+  const filtered = complaints.filter(c => {
+    const title = (c.title || '').toLowerCase();
+    const id = (c._id || '').toLowerCase();
+    const desc = (c.description || '').toLowerCase();
+
+    const matchSearch = title.includes(searchQuery.toLowerCase()) ||
+                        desc.includes(searchQuery.toLowerCase()) ||
+                        id.includes(searchQuery.toLowerCase());
+    const matchStatus = filterStatus === 'All' || c.status === filterStatus;
+    const matchCat = filterCategory === 'All' || c.category === filterCategory;
+    return matchSearch && matchStatus && matchCat;
+  });
 
   const stats = {
-    total: complaints.filter(c => {
-      const cId = c.studentId?._id || c.studentId;
-      return cId === studentId;
-    }).length,
-    pending: complaints.filter(c => {
-      const cId = c.studentId?._id || c.studentId;
-      return cId === studentId && c.status === 'Pending';
-    }).length,
-    inProgress: complaints.filter(c => {
-      const cId = c.studentId?._id || c.studentId;
-      return cId === studentId && c.status === 'In Progress';
-    }).length,
-    resolved: complaints.filter(c => {
-      const cId = c.studentId?._id || c.studentId;
-      return cId === studentId && c.status === 'Resolved';
-    }).length,
+    total: complaints.length,
+    pending: complaints.filter(c => c.status === 'Pending').length,
+    inProgress: complaints.filter(c => c.status === 'In Progress').length,
+    resolved: complaints.filter(c => c.status === 'Resolved').length,
   };
 
   return (
@@ -92,37 +86,14 @@ export function StudentComplaints() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {activeTab === 'my' ? 'My Complaints' : 'Community Complaints'}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {activeTab === 'my' ? 'Submit and track your hostel complaints.' : 'View issues reported by other students in the hostel.'}
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Hostel Complaints</h1>
+          <p className="text-muted-foreground mt-1 text-sm">View all complaints reported in your hostel block.</p>
         </div>
-        <div className="flex gap-3">
-          <div className="bg-muted/50 p-1 rounded-xl flex gap-1 border border-border/50">
-            <button
-              onClick={() => setActiveTab('my')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-xs font-bold transition-all",
-                activeTab === 'my' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              My Issues
-            </button>
-            <button
-              onClick={() => setActiveTab('all')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-xs font-bold transition-all",
-                activeTab === 'all' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Community
-            </button>
-          </div>
+        <div className="flex gap-3 w-full sm:w-auto">
+          {/* Removed My/Community toggle as requested */}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+            className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 duration-200"
           >
             <Plus size={18} /> New Report
           </button>
@@ -130,18 +101,11 @@ export function StudentComplaints() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Total', value: stats.total, color: 'text-foreground', bg: 'bg-muted/40' },
-          { label: 'Pending', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-500/10' },
-          { label: 'In Progress', value: stats.inProgress, color: 'text-blue-600', bg: 'bg-blue-500/10' },
-          { label: 'Resolved', value: stats.resolved, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-        ].map(s => (
-          <div key={s.label} className={`glass-card p-4 text-center ${s.bg}`}>
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <DashboardCard title="Total Complaints" value={stats.total} icon={MessageSquare} />
+        <DashboardCard title="Pending" value={stats.pending} icon={AlertCircle} className="border-amber-200 dark:border-amber-900/50" />
+        <DashboardCard title="In Progress" value={stats.inProgress} icon={Clock} className="border-blue-200 dark:border-blue-900/50" />
+        <DashboardCard title="Resolved" value={stats.resolved} icon={CheckCircle2} className="border-emerald-200 dark:border-emerald-900/50" />
       </div>
 
       {/* Success / Error message */}
@@ -160,22 +124,32 @@ export function StudentComplaints() {
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {filters.map(f => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-              activeFilter === f
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            )}
-          >
-            {f}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="glass-card p-4 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+            placeholder="Search by title, description, or ID..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <select
+          className="px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+        >
+          <option value="All">All Statuses</option>
+          {STATUSES.map(s => <option key={s}>{s}</option>)}
+        </select>
+        <select
+          className="px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+          value={filterCategory}
+          onChange={e => setFilterCategory(e.target.value)}
+        >
+          {categoriesDb.map(c => <option key={c}>{c}</option>)}
+        </select>
       </div>
 
       {/* Complaints List */}
@@ -184,9 +158,9 @@ export function StudentComplaints() {
           <div className="bg-muted p-4 rounded-full mb-4">
             <MessageSquare size={32} className="text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold">No complaints here</h3>
+          <h3 className="text-lg font-semibold">No complaints found</h3>
           <p className="text-muted-foreground max-w-xs mt-1 text-sm">
-            {activeFilter === 'All' ? "Click \"New Complaint\" to raise your first issue." : `No ${activeFilter} complaints.`}
+            Try adjusting your filters or search query, or click "New Report" to raise your first issue.
           </p>
         </div>
       ) : (
@@ -204,6 +178,11 @@ export function StudentComplaints() {
                         complaint.priority === 'Medium' ? 'bg-amber-500/10 text-amber-600' :
                           'bg-emerald-500/10 text-emerald-600'
                     )}>{complaint.priority}</span>
+                    {(complaint.studentId?._id === studentId || complaint.studentId === studentId) && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-primary/10 text-primary">
+                        My Request
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-semibold text-foreground">{complaint.title}</h3>
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{complaint.description}</p>

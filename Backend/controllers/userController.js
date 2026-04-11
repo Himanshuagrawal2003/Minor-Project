@@ -10,6 +10,14 @@ import jwt from "jsonwebtoken";
 export const createUser = async (req, res) => {
     try {
         const { name, email, contact, role, extra } = req.body;
+        
+        // 🚨 Duplicate Email Check
+        if (email) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: `User with email ${email} already exists.` });
+            }
+        }
 
         const prefix = role === "student" ? "S" : role === "warden" ? "W" : role === "chief-warden" ? "CW" : role === "staff" ? "ST" : "U";
         const randomNum = Math.floor(1000 + Math.random() * 9000);
@@ -22,13 +30,12 @@ export const createUser = async (req, res) => {
             password: customId,
         };
 
-        // staff → contact, others → email
-        if (role === "staff") userData.contact = contact;
-        else userData.email = email;
+        userData.contact = contact || "";
+        userData.email = email || "";
 
         // role-based mapping (frontend extra field)
         if (role === "student") userData.course = extra;
-        if (role === "warden") userData.block = extra;
+        if (role === "warden") userData.buildingType = extra;
         if (role === "chief-warden") userData.department = extra;
         if (role === "staff") userData.department = extra;
 
@@ -81,10 +88,19 @@ export const deleteUser = async (req, res) => {
 export const bulkCreateUsers = async (req, res) => {
     try {
         const { users, role } = req.body;
-
         const created = [];
+        const errors = [];
 
         for (let u of users) {
+             // 🚨 Skip duplicates in bulk import
+             if (u.email) {
+                const existingUser = await User.findOne({ email: u.email });
+                if (existingUser) {
+                    errors.push(`${u.name} (${u.email}) - Email already exists.`);
+                    continue;
+                }
+             }
+
             const prefix = role === "student" ? "S" : role === "warden" ? "W" : role === "chief-warden" ? "CW" : role === "staff" ? "ST" : "U";
             const randomNum = Math.floor(1000 + Math.random() * 9000);
             const customId = u.id || `${prefix}-${randomNum}`;
@@ -96,11 +112,11 @@ export const bulkCreateUsers = async (req, res) => {
                 password: customId,
             };
 
-            if (role === "staff") userData.contact = u.contact;
-            else userData.email = u.email;
+            userData.contact = u.contact || "";
+            userData.email = u.email || "";
 
             if (role === "student") userData.course = u.extra;
-            if (role === "warden") userData.block = u.extra;
+            if (role === "warden") userData.buildingType = u.extra;
             if (role === "chief-warden") userData.department = u.extra;
             if (role === "staff") userData.department = u.extra;
 
@@ -116,6 +132,7 @@ export const bulkCreateUsers = async (req, res) => {
         res.json({
             count: created.length,
             users: created,
+            errors: errors.length > 0 ? errors : undefined
         });
 
     } catch (err) {
@@ -170,35 +187,97 @@ export const loginUser = async (req, res) => {
 export const allotRoom = async (req, res) => {
     try {
         const { id } = req.params;
-        const { roomNumber, block, messId } = req.body;
+        let { roomNumber, block, messId, buildingType } = req.body;
 
         const user = await User.findById(id);
         if (!user) {
             return res.status(404).json({ message: "Student not found" });
         }
 
-        if (roomNumber) {
-            const room = await Room.findOne({ number: roomNumber });
-            if (!room) {
-                return res.status(404).json({ message: "Specified room not found" });
-            }
-
-            // Check how many students are already in this room
-            const currentOccupancy = await User.countDocuments({ roomNumber, _id: { $ne: id } });
-            if (currentOccupancy >= room.capacity) {
-                return res.status(400).json({ message: `Room ${roomNumber} is already full (Capacity: ${room.capacity})` });
-            }
-            
-            user.roomNumber = roomNumber;
-        } else if (roomNumber === "") {
-            user.roomNumber = "";
+        // UNCONDITIONAL SAVE: If messId is provided (even if empty), save it.
+        // This ensures "What you select is what you get"
+        if (messId !== undefined) {
+             console.log(`Backend: Allotting Mess '${messId}' to User '${id}'`);
+             user.messId = messId;
         }
 
-        if (block !== undefined) user.block = block;
-        if (messId !== undefined) user.messId = messId;
-        
+        if (roomNumber) {
+            let roomQuery = { number: roomNumber, block: block || "" };
+            if (buildingType) roomQuery.type = buildingType;
+
+            let room = await Room.findOne(roomQuery);
+            
+            if (!room) {
+                const bPrefix = `B-${roomNumber}`;
+                const gPrefix = `G-${roomNumber}`;
+                room = await Room.findOne({ 
+                    $or: [
+                        { number: bPrefix, block: block || "", ...(buildingType ? { type: buildingType } : {}) },
+                        { number: gPrefix, block: block || "", ...(buildingType ? { type: buildingType } : {}) }
+                    ]
+                });
+            }
+
+            if (room) {
+                // Check occupancy
+                const currentOccupancy = await User.countDocuments({ 
+                    roomNumber: room.number, 
+                    block: room.block, 
+                    _id: { $ne: id } 
+                });
+
+                if (currentOccupancy >= room.capacity) {
+                    // If we only updated mess, still save that before erroring out on room
+                    await user.save();
+                    return res.status(400).json({ 
+                        message: `Mess updated, but Room ${room.number} is full.`,
+                        user 
+                    });
+                }
+                
+                user.roomNumber = room.number;
+                user.block = room.block;
+                user.buildingType = room.type;
+                user.roomId = `${room.type}-${room.block}-${room.number}`;
+            } else {
+                // If room roomNumber was provided but not found, save mess anyway but alert room fail
+                await user.save();
+                return res.status(404).json({ 
+                    message: "Mess updated, but specified room not found.",
+                    user 
+                });
+            }
+        } else if (roomNumber === "") {
+            user.roomNumber = "";
+            user.block = "";
+            user.buildingType = "";
+            user.roomId = "";
+        }
+
         await user.save();
-        res.json({ message: "Room allotted successfully", user });
+        res.json({ message: "Allotment updated successfully", user });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// ✅ GET ROOMMATES
+export const getRoommates = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user || (!user.roomNumber && !user.roomId)) {
+            return res.json({ roommates: [] });
+        }
+
+        const roommates = await User.find({
+            _id: { $ne: user._id },
+            $or: [
+                { roomId: user.roomId },
+                { roomNumber: user.roomNumber, block: user.block, buildingType: user.buildingType }
+            ]
+        }).select("name contact email course department roomNumber block");
+
+        res.json({ roommates });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -212,9 +291,18 @@ export const updateProfile = async (req, res) => {
         if (user) {
             user.contact = req.body.contact || user.contact;
             user.course = req.body.course || user.course;
-            user.block = req.body.block || user.block;
             user.department = req.body.department || user.department;
-            user.roomNumber = req.body.roomNumber || user.roomNumber;
+            user.address = req.body.address || user.address;
+            user.bio = req.body.bio || user.bio;
+
+            // Only Admins or Wardens can change Room/Block/Mess assignments
+            const canManageAllotment = ["admin", "warden", "chief-warden"].includes(req.user.role);
+            if (canManageAllotment) {
+                if (req.body.block !== undefined) user.block = req.body.block;
+                if (req.body.roomNumber !== undefined) user.roomNumber = req.body.roomNumber;
+                if (req.body.messId !== undefined) user.messId = req.body.messId;
+            }
+
             user.isProfileComplete = true; // Mark as complete after update
 
             const updatedUser = await user.save();

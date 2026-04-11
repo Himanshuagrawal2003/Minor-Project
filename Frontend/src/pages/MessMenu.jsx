@@ -65,6 +65,7 @@ export function MessMenu() {
 
   useEffect(() => {
     fetchMenuData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTabChange = (tab) => {
@@ -366,7 +367,7 @@ export function MessMenu() {
         "grid grid-cols-1 md:grid-cols-3 gap-6 transition-all duration-500",
         isEditing ? "opacity-95 scale-[0.99]" : "opacity-100"
       )}>
-        {mealConfigs.map(({ id, label, time, icon: Icon, color }) => {
+        {mealConfigs.map(({ id, label, time, icon: MealIcon, color }) => {
           const items = isEditing ? editForm?.[id] || [] : allMenus[selectedMess]?.[selectedDay]?.[id] || [];
 
           return (
@@ -380,7 +381,7 @@ export function MessMenu() {
               )}>
                 <div className="flex items-center gap-3">
                   <div className={cn("p-2 rounded-lg bg-background", `text-${color}-500 shadow-sm`)}>
-                    <Icon size={20} />
+                    <MealIcon size={20} />
                   </div>
                   <div>
                     <h3 className="font-bold text-sm uppercase tracking-widest">{label}</h3>

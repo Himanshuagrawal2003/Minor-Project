@@ -8,9 +8,7 @@ The system helps students submit complaints and requests while hostel authoritie
 ## 📌 Features
 
 - Complaint submission and tracking  
-- Leave request management  
-- Visitor registration  
-- Medical support requests  
+- Leave request management   
 - Emergency alert system  
 - Hostel room management  
 - Role-based access control

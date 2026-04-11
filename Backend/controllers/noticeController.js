@@ -34,19 +34,55 @@ export const getNotices = async (req, res) => {
 
 export const createNotice = async (req, res) => {
   try {
-    const { title, content, priority, targetRoles, attachment } = req.body;
+    console.log("[Notice] Create request body:", req.body);
+    console.log("[Notice] Attached file:", req.file);
+
+    const { title, content, priority, targetRoles, existingAttachment } = req.body;
+    
+    let attachment = undefined;
+    if (req.file) {
+      attachment = {
+        name: req.file.originalname,
+        url: `/uploads/notices/${req.file.filename}`,
+        fileType: req.file.mimetype
+      };
+    } else if (existingAttachment) {
+      try {
+        attachment = JSON.parse(existingAttachment);
+      } catch (e) {
+        console.error("Failed to parse existing attachment:", e);
+      }
+    }
+
+    // Handle targetRoles if it's sent as a string (FormData behavior)
+    let processedTargetRoles = targetRoles;
+    if (typeof targetRoles === 'string' && targetRoles) {
+        processedTargetRoles = targetRoles.split(',').map(r => r.trim());
+    } else if (!targetRoles) {
+        processedTargetRoles = ['all'];
+    }
+
     const notice = new Notice({
       title,
       content,
       priority,
-      targetRoles,
+      targetRoles: processedTargetRoles,
       attachment,
       author: req.user._id
     });
+    
     await notice.save();
+    console.log("[Notice] Created successfully:", notice._id);
     res.status(201).json(notice);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error("[Notice] Create notice error:", err);
+    res.status(400).json({ 
+        message: err.message,
+        error: err.errors ? Object.keys(err.errors).reduce((acc, key) => {
+            acc[key] = err.errors[key].message;
+            return acc;
+        }, {}) : undefined
+    });
   }
 };
 

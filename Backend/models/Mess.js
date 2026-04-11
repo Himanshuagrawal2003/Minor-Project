@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const messSchema = new mongoose.Schema({
+  messId: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   name: {
     type: String,
     required: true,
@@ -26,14 +32,6 @@ const messSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
-
-// Virtual for messId (using the name or _id slugified)
-messSchema.virtual('messId').get(function() {
-  return this.name.toLowerCase().replace(/\s+/g, '-');
-});
-
-messSchema.set('toJSON', { virtuals: true });
-messSchema.set('toObject', { virtuals: true });
 
 const Mess = mongoose.model('Mess', messSchema);
 export default Mess;

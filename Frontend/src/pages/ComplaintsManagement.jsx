@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from '../components/StatusBadge';
+import { DashboardCard } from '../components/DashboardCard';
 import { api } from '../services/api';
 
 export function ComplaintsManagement() {
@@ -42,7 +43,7 @@ export function ComplaintsManagement() {
   useEffect(() => {
     loadComplaints();
     if (userRole !== 'student') loadStaff();
-  }, []);
+  }, [userRole]);
 
   const openView = (complaint) => {
     setViewingComplaint(complaint);
@@ -117,18 +118,11 @@ export function ComplaintsManagement() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Total', value: stats.total, color: 'text-foreground', bg: 'bg-muted/40' },
-          { label: 'Pending', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-500/10' },
-          { label: 'In Progress', value: stats.inProgress, color: 'text-blue-600', bg: 'bg-blue-500/10' },
-          { label: 'Resolved', value: stats.resolved, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-        ].map(s => (
-          <div key={s.label} className={`glass-card p-4 text-center ${s.bg}`}>
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <DashboardCard title="Total Complaints" value={stats.total} icon={MessageSquare} />
+        <DashboardCard title="Pending" value={stats.pending} icon={AlertCircle} className="border-amber-200 dark:border-amber-900/50" />
+        <DashboardCard title="In Progress" value={stats.inProgress} icon={Clock} className="border-blue-200 dark:border-blue-900/50" />
+        <DashboardCard title="Resolved" value={stats.resolved} icon={CheckCircle2} className="border-emerald-200 dark:border-emerald-900/50" />
       </div>
 
       {/* Filters */}
@@ -173,7 +167,7 @@ export function ComplaintsManagement() {
       ) : (
         <div className="space-y-3">
           {filtered.map(complaint => (
-            <div key={complaint.id} className="glass-card p-5 hover:border-primary/30 transition-all">
+            <div key={complaint._id} className="glass-card p-5 hover:border-primary/30 transition-all">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -191,6 +185,7 @@ export function ComplaintsManagement() {
                     <span>👤 {complaint.studentId?.name || complaint.studentName}</span>
                     <span>🆔 {complaint.studentId?.customId || 'N/A'}</span>
                     <span>🚪 Room {complaint.studentId?.roomNumber || complaint.room}</span>
+                    <span className="font-bold text-primary/80">🏢 Block {complaint.studentId?.block || complaint.block || 'N/A'}</span>
                     <span>📅 {new Date(complaint.createdAt).toLocaleDateString()}</span>
                     {complaint.assignedStaffId && (() => {
                       const staff = staffList.find(s => s._id === complaint.assignedStaffId);

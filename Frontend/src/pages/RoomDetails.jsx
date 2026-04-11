@@ -67,11 +67,20 @@ export function RoomDetails() {
           title="Room Number"
           value={userRoom}
           icon={BedDouble}
-          className="ring-1 ring-primary/20 bg-primary/5"
         />
-        <DashboardCard title="Building" value=" Boys Hostel" icon={Building2} />
-        <DashboardCard title="Block Name" value={`Block ${userBlock}`} />
-        <DashboardCard title="Mess Allotted" value={userMess} />
+        <DashboardCard
+          title="Building"
+          value={dashboardData?.studentStats?.buildingType ? `${dashboardData.studentStats.buildingType} Hostel` : "Hostel"}
+          icon={Building2}
+        />
+        <DashboardCard
+          title="Block Name"
+          value={userBlock !== "N/A" ? `Block ${userBlock}` : "N/A"}
+        />
+        <DashboardCard
+          title={dashboardData?.studentStats?.roomId ? "Room ID" : "Mess Allotted"}
+          value={dashboardData?.studentStats?.roomId || userMess}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

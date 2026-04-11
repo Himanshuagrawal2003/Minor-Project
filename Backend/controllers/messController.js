@@ -5,8 +5,8 @@ import Mess from '../models/Mess.js';
 // Mess Model CRUD
 export const createMess = async (req, res) => {
   try {
-    const { name, description, location, capacity } = req.body;
-    const mess = new Mess({ name, description, location, capacity });
+    const { messId, name, description, location, capacity } = req.body;
+    const mess = new Mess({ messId, name, description, location, capacity });
     await mess.save();
     res.status(201).json(mess);
   } catch (err) {
@@ -26,10 +26,10 @@ export const getMesses = async (req, res) => {
 export const updateMess = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, location, capacity, isActive } = req.body;
+    const { messId, name, description, location, capacity, isActive } = req.body;
     const mess = await Mess.findByIdAndUpdate(
       id, 
-      { name, description, location, capacity, isActive },
+      { messId, name, description, location, capacity, isActive },
       { new: true }
     );
     if (!mess) return res.status(404).json({ message: "Mess not found" });
@@ -52,8 +52,9 @@ export const deleteMessInstance = async (req, res) => {
 
 export const getAllMesses = async (req, res) => {
   try {
-    const messes = await MessMenu.distinct('messId');
-    res.json(messes);
+    // Return unique mess IDs from the menu system
+    const menuMesses = await MessMenu.distinct('messId');
+    res.json(menuMesses);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -89,7 +90,39 @@ export const getTodayMenu = async (req, res) => {
     const { messId } = req.query;
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const today = days[new Date().getDay()];
-    const menu = await MessMenu.findOne({ messId: messId || 'Default Mess', day: today });
+    
+    // Improved robust searching
+    let menu = null;
+    if (messId) {
+      // 1. Try exact match
+      menu = await MessMenu.findOne({ day: today, messId: messId });
+      
+      // 2. Try case-insensitive exact match
+      if (!menu) {
+        menu = await MessMenu.findOne({ 
+          day: today, 
+          messId: { $regex: new RegExp(`^${messId.trim()}$`, 'i') } 
+        });
+      }
+      
+      // 3. Try variations (spaces vs dashes)
+      if (!menu) {
+        const variation = messId.includes('-') ? messId.replace(/-/g, ' ') : messId.replace(/ /g, '-');
+        menu = await MessMenu.findOne({ 
+          day: today, 
+          messId: { $regex: new RegExp(`^${variation.trim()}$`, 'i') } 
+        });
+      }
+    }
+
+    // 4. Default fallback
+    if (!menu) {
+      menu = await MessMenu.findOne({ 
+        day: today, 
+        messId: { $regex: /^Default Mess$/i } 
+      });
+    }
+
     res.json(menu);
   } catch (err) {
     res.status(500).json({ message: err.message });

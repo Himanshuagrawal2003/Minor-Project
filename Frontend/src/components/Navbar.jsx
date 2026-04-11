@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Moon, Sun, Menu, User } from 'lucide-react';
+import { Bell, Moon, Sun, Menu, User, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
@@ -11,6 +11,7 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
     const isDarkMode = localStorage.getItem('theme') === 'dark' ||
       (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDark(isDarkMode);
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -68,20 +69,21 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
           {isDark ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
-        <div className="flex items-center gap-2 pl-2 border-l border-border/50 ml-2">
-          <div className="hidden sm:flex flex-col items-end">
+        <div className="flex items-center gap-1 sm:gap-2 pl-1 sm:pl-2 border-l border-border/50 ml-1 sm:ml-2">
+          <div className="hidden md:flex flex-col items-end">
             <span className="text-sm font-semibold leading-none">{userName}</span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{role}</span>
           </div>
           <button
             onClick={handleLogout}
-            className="flex h-8 items-center gap-2 px-3 text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+            className="flex h-9 items-center justify-center sm:justify-start gap-2 px-2 sm:px-3 text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all shrink-0"
             title="Sign Out"
           >
-            Logout
+            <LogOut size={16} className="sm:hidden" />
+            <span className="hidden sm:inline">Logout</span>
           </button>
-          <Link to={`/${role}/profile`} className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary cursor-pointer hover:bg-primary/20 transition-colors ml-1">
-            <User size={16} />
+          <Link to={`/${role}/profile`} className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary cursor-pointer hover:bg-primary/20 transition-colors shrink-0">
+            <User size={18} />
           </Link>
         </div>
       </div>

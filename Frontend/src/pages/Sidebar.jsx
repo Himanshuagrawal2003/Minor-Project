@@ -134,7 +134,7 @@ export function Sidebar({ isCollapsed, role, isOpen, onMobileClose }) {
               localStorage.removeItem('role');
               if (onMobileClose) onMobileClose();
             }}
-            className={({ isActive }) => cn(
+            className={() => cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 group",
               (isCollapsed && !onMobileClose) && "justify-center px-0"
             )}

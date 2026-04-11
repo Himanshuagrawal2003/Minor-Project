@@ -11,6 +11,7 @@ export function MessManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMess, setEditingMess] = useState(null);
   const [formData, setFormData] = useState({
+    messId: '',
     name: '',
     description: '',
     location: '',
@@ -43,7 +44,7 @@ export function MessManagement() {
       }
       setIsModalOpen(false);
       setEditingMess(null);
-      setFormData({ name: '', description: '', location: '', capacity: 200 });
+      setFormData({ messId: '', name: '', description: '', location: '', capacity: 200 });
       fetchMesses();
     } catch (err) {
       console.error("Save mess error:", err);
@@ -56,7 +57,7 @@ export function MessManagement() {
     try {
       await api.delete(`/mess/manage/${id}`);
       fetchMesses();
-    } catch (err) {
+    } catch {
       alert("Failed to delete mess");
     }
   };
@@ -64,6 +65,7 @@ export function MessManagement() {
   const openEditModal = (mess) => {
     setEditingMess(mess);
     setFormData({
+      messId: mess.messId || '',
       name: mess.name,
       description: mess.description || '',
       location: mess.location || '',
@@ -138,6 +140,13 @@ export function MessManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <FormInput
+                label="Mess ID"
+                value={formData.messId}
+                onChange={(e) => setFormData({ ...formData, messId: e.target.value })}
+                placeholder="e.g., M1, MESS-ONE"
+                required
+              />
               <FormInput
                 label="Mess Name"
                 value={formData.name}

@@ -10,17 +10,29 @@ export const getRooms = async (req, res) => {
     }
 };
 
+// Helper function to ensure room number has building prefix
+const prefixRoomNumber = (number, type) => {
+    if (!number) return number;
+    const prefix = type === 'Boys' ? 'B-' : 'G-';
+    let finalNumber = number.toString().trim();
+    if (!finalNumber.startsWith('B-') && !finalNumber.startsWith('G-')) {
+        finalNumber = `${prefix}${finalNumber}`;
+    }
+    return finalNumber;
+};
+
 // ✅ CREATE ROOM (Admin only)
 export const createRoom = async (req, res) => {
     try {
         const { number, block, capacity, type } = req.body;
+        const finalNumber = prefixRoomNumber(number, type);
         
-        const roomExists = await Room.findOne({ number });
+        const roomExists = await Room.findOne({ number: finalNumber });
         if (roomExists) {
-            return res.status(400).json({ message: "Room already exists" });
+            return res.status(400).json({ message: `Room ${finalNumber} already exists` });
         }
 
-        const room = await Room.create({ number, block, capacity, type });
+        const room = await Room.create({ number: finalNumber, block, capacity, type });
         res.status(201).json({ success: true, room });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -31,7 +43,11 @@ export const createRoom = async (req, res) => {
 export const bulkCreateRooms = async (req, res) => {
     try {
         const { rooms } = req.body;
-        const result = await Room.insertMany(rooms);
+        const processedRooms = rooms.map(r => ({
+            ...r,
+            number: prefixRoomNumber(r.number, r.type)
+        }));
+        const result = await Room.insertMany(processedRooms);
         res.status(201).json({ success: true, count: result.length });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -42,9 +58,11 @@ export const bulkCreateRooms = async (req, res) => {
 export const updateRoom = async (req, res) => {
     try {
         const { number, block, capacity, type, status } = req.body;
+        const finalNumber = prefixRoomNumber(number, type);
+        
         const room = await Room.findByIdAndUpdate(
             req.params.id,
-            { number, block, capacity, type, status },
+            { number: finalNumber, block, capacity, type, status },
             { new: true }
         );
         if (!room) return res.status(404).json({ message: "Room not found" });

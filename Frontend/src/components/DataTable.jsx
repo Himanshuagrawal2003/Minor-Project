@@ -10,7 +10,7 @@ export function DataTable({ columns, data, className }) {
           <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b border-border">
             <tr>
               {columns.map((col, idx) => (
-                <th key={idx} className="px-6 py-4 font-medium">
+                <th key={idx} className={cn("px-3 py-3 sm:px-6 sm:py-4 font-medium", col.className)}>
                   {col.header}
                 </th>
               ))}
@@ -21,7 +21,7 @@ export function DataTable({ columns, data, className }) {
               data.map((row, rowIndex) => (
                 <tr key={rowIndex} className="border-b border-border/50 hover:bg-muted/20 transition-colors last:border-0">
                   {columns.map((col, colIndex) => (
-                    <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-foreground">
+                    <td key={colIndex} className={cn("px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-foreground", col.className)}>
                       {col.cell ? col.cell(row) : row[col.accessorKey]}
                     </td>
                   ))}

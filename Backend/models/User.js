@@ -4,8 +4,7 @@ import bcrypt from "bcryptjs";
 const userSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
-        customId: { type: String, unique: true },
-
+        customId: { type: String, unique: true, sparse: true },
         email: {
             type: String,
             unique: true,
@@ -25,6 +24,12 @@ const userSchema = new mongoose.Schema(
         isProfileComplete: { type: Boolean, default: false },
         roomNumber: { type: String, default: "" },
         block: { type: String, default: "" },
+        buildingType: { 
+            type: String, 
+            enum: ["Boys", "Girls", ""],
+            default: ""
+        },
+        roomId: { type: String, default: "" },
         messId: { type: String, default: "" },
         course: { type: String, default: "" },
         department: { type: String, default: "" },

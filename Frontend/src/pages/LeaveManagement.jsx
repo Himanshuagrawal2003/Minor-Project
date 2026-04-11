@@ -60,10 +60,10 @@ export function LeaveManagement() {
     <div className="space-y-6 pb-12 w-full max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-2">
-            <FileCheck /> Leave & No Dues Approvals
+          <h1 className="text-2xl font-bold tracking-tight">
+            Leave & No Dues Approvals
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">Review and process student leave applications and checkout clearances.</p>
+          <p className="text-muted-foreground mt-1">Review and process student leave applications and checkout clearances.</p>
         </div>
       </div>
 
@@ -104,12 +104,16 @@ export function LeaveManagement() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {filteredLeaves.length > 0 ? (
+        {isLoading ? (
+          <div className="col-span-full py-12 flex justify-center">
+            <Loader2 size={48} className="animate-spin text-primary" />
+          </div>
+        ) : filteredLeaves.length > 0 ? (
           filteredLeaves.map(l => {
             const isPending = l.status === 'Pending';
 
             return (
-              <div key={l.id} className={cn(
+              <div key={l._id} className={cn(
                 "glass-card p-6 border relative transition-all group hover:shadow-lg flex flex-col h-full",
                 isPending ? "border-primary/30 bg-primary/5 shadow-primary/5" : "border-border/50 bg-muted/5 opacity-80"
               )}>

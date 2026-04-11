@@ -10,7 +10,7 @@ export function DashboardCard({
   className
 }) {
   return (
-    <div className={cn("glass-card p-6 flex flex-col gap-4 hover-lift", className)}>
+    <div className={cn("glass-card p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 hover-lift", className)}>
       {(title || Icon) && (
         <div className="flex justify-between items-center">
           {title && <h3 className="font-medium text-muted-foreground">{title}</h3>}
@@ -23,8 +23,8 @@ export function DashboardCard({
       )}
       
       {value && (
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">{value}</h2>
+        <div className="flex items-baseline gap-1.5 sm:gap-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">{value}</h2>
           {trend && (
             <span className={cn(
               "text-sm font-medium",

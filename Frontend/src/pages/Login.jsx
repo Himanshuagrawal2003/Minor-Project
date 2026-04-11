@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FormInput } from '../components/FormInput';
 import { ShieldCheck, User, UserCheck, Star, Wrench, Building2, ArrowRight, AlertCircle } from 'lucide-react';
@@ -44,6 +44,7 @@ export function Login() {
         setPassword(`${selectedRole}123`);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRole]);
 
   const handleLogin = async (e) => {

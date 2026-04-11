@@ -11,13 +11,13 @@ const NoticeSchema = new mongoose.Schema({
   targetRoles: [{ 
     type: String, 
     enum: ['student', 'warden', 'chief-warden', 'staff', 'admin', 'all'],
-    default: ['all']
+    default: 'all'
   }],
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   attachment: {
     name: String,
     url: String,
-    type: String
+    fileType: String
   },
   createdAt: { type: Date, default: Date.now }
 });

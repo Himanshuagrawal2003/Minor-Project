@@ -61,13 +61,29 @@ export function NoticeManagement() {
     setMessage({ type: "", text: "" });
 
     try {
+      const data = new FormData();
+      data.append('title', formData.title);
+      data.append('content', formData.content);
+      data.append('priority', formData.priority);
+      data.append('targetRoles', formData.targetRoles.join(','));
+      
+      if (selectedFile) {
+        data.append('attachment', selectedFile);
+        console.log("Attached file to FormData:", selectedFile.name);
+      } else if (editingNotice?.attachment) {
+        // Keep existing attachment information
+        data.append('existingAttachment', JSON.stringify(editingNotice.attachment));
+        console.log("Attached existing attachment info to FormData");
+      }
+
+      console.log("Sending notice data:", Object.fromEntries(data.entries()));
+
       if (editingNotice) {
-        // Not adding edit API yet for speed, but can if needed
-        // For now, let's just implement Create and Delete as per plan
-        await api.delete(`/notices/${editingNotice._id}`); // Simplified update for now
-        await api.post('/notices', formData);
+        // Simplified update: delete and re-create for now as per current logic
+        await api.delete(`/notices/${editingNotice._id}`);
+        await api.post('/notices', data);
       } else {
-        await api.post('/notices', formData);
+        await api.post('/notices', data);
       }
       loadNotices();
       setMessage({ type: "success", text: editingNotice ? "Notice updated successfully!" : "Notice created successfully!" });
@@ -76,7 +92,12 @@ export function NoticeManagement() {
       setIsModalOpen(false);
       setEditingNotice(null);
     } catch (err) {
-      setMessage({ type: "error", text: "Failed to save notice" });
+      console.error("Save notice error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Failed to save notice";
+      const validationErrors = err.response?.data?.error;
+      const details = validationErrors ? ": " + Object.values(validationErrors).join(", ") : "";
+      
+      setMessage({ type: "error", text: errorMsg + details });
     } finally {
       setIsSubmitting(false);
     }
@@ -88,7 +109,7 @@ export function NoticeManagement() {
       await api.delete(`/notices/${id}`);
       loadNotices();
       setMessage({ type: "success", text: "Notice deleted successfully!" });
-    } catch (err) {
+    } catch {
       setMessage({ type: "error", text: "Failed to delete notice" });
     }
   };
@@ -103,6 +124,12 @@ export function NoticeManagement() {
       targetRoles: notice.targetRoles
     });
     setIsModalOpen(true);
+  };
+
+  const getAttachmentUrl = (url) => {
+    if (!url) return "#";
+    const backendUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    return `${backendUrl}${url}`;
   };
 
   return (
@@ -191,8 +218,9 @@ export function NoticeManagement() {
                 </div>
                 {notice.attachment && (
                   <a
-                    href={notice.attachment.url}
-                    download={notice.attachment.name}
+                    href={getAttachmentUrl(notice.attachment.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-2 text-[11px] text-primary hover:underline mt-1 group/att"
                   >
                     <FileText size={12} className="shrink-0" />

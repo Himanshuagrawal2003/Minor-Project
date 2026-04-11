@@ -3,7 +3,6 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { FormInput } from '../components/FormInput';
 import { api } from '../services/api';
-import { cn } from '../lib/utils';
 
 export function ForgotPassword() {
   const [email, setEmail] = useState('');

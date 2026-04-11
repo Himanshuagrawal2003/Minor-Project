@@ -6,8 +6,6 @@ const LEAVE_TYPES = ['Weekend Pass', 'Medical Leave', 'Semester Leave', 'Permane
 import { cn } from '../lib/utils';
 
 export function LeaveRequest() {
-   const studentId = localStorage.getItem('userID') || 'S101';
-
    const [leaves, setLeaves] = useState([]);
    const [isLoading, setIsLoading] = useState(true);
 

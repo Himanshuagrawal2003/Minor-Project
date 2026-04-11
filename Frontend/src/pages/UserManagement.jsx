@@ -56,35 +56,16 @@ export function UserManagement() {
     fetchUsers();
   }, [activeRole]);
 
-  const [formData, setFormData] = useState({ name: "", email: "", extra: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", contact: "", extra: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [selectedFile, setSelectedFile] = useState(null);
   const [deleteSearchTerm, setDeleteSearchTerm] = useState("");
   const [deleteTab, setDeleteTab] = useState("manual");
+  const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef(null);
 
-  // Returns the correct extra-field key for each role
-  const getExtraKey = (role) => {
-    switch (role) {
-      case "student": return "course";
-      case "warden": return "block";
-      case "chief-warden": return "department";
-      case "staff": return "role";
-      default: return "extra";
-    }
-  };
 
-  // Returns the ID prefix for each role
-  const getIdPrefix = (role) => {
-    switch (role) {
-      case "student": return "S";
-      case "warden": return "W";
-      case "chief-warden": return "CW";
-      case "staff": return "ST";
-      default: return "U";
-    }
-  };
 
   const handleManualAdd = async (e) => {
     e.preventDefault();
@@ -94,9 +75,9 @@ export function UserManagement() {
     try {
       const res = await api.post("/users/create", {
         name: formData.name,
+        email: formData.email,
+        contact: formData.contact,
         role: activeRole,
-        // staff uses contact, others use email
-        ...(activeRole === "staff" ? { contact: formData.email } : { email: formData.email }),
         extra: formData.extra,
       });
 
@@ -105,7 +86,7 @@ export function UserManagement() {
         const freshUsers = await api.get(`/users?role=${activeRole}`);
         setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
         
-        setFormData({ name: "", email: "", extra: "" });
+        setFormData({ name: "", email: "", contact: "", extra: "" });
         setMessage({
           type: "success",
           text: `Successfully created ${activeRole}. Temp Password: ${res.tempPassword}`,
@@ -139,10 +120,10 @@ export function UserManagement() {
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
         const usersToCreate = jsonData.map((row) => ({
-          name: row.Name || "Unknown",
-          ...(activeRole === "staff"
-            ? { contact: row.Contact || row.Email || "N/A" }
-            : { email: row.Email || row.Id || row.ID || "N/A" }),
+          id: row.ID || row.Id || row.UserID || row['User ID'] || "",
+          name: row.Name || row["Full Name"] || "Unknown",
+          email: row.Email || row['Email Address'] || "N/A",
+          contact: row.Contact || row['Contact Number'] || row.Phone || "N/A",
           extra: row.Extra || row.Course || row.Block || row.Department || row.Role || "N/A",
         }));
 
@@ -232,11 +213,13 @@ export function UserManagement() {
     let filename = "";
 
     if (activeMethod === "bulk") {
+      const extraHeader = activeRole === "student" ? "Course" : activeRole === "warden" ? "Block" : activeRole === "chief-warden" ? "Department" : "Role";
       templateData = [{
-        ID: "1001",
+        ID: activeRole === "student" ? "S101" : activeRole === "warden" ? "W201" : "ST301",
         Name: "John Doe",
-        ...(activeRole === "staff" ? { Contact: "9876543210" } : { Email: "john@example.com" }),
-        Extra: activeRole === "student" ? "CSE" : activeRole === "warden" ? "Block B" : activeRole === "staff" ? "Electrician" : "Admin",
+        Email: "john@example.com",
+        Contact: "9876543210",
+        [extraHeader]: activeRole === "student" ? "CSE" : activeRole === "warden" ? "Block B" : activeRole === "staff" ? "Electrician" : "Admin",
       }];
       filename = `${activeRole}_upload_template.xlsx`;
     } else {
@@ -270,6 +253,7 @@ export function UserManagement() {
       { header: "Student ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Email", accessorKey: "email" },
+      { header: "Contact", accessorKey: "contact" },
       { header: "Course", accessorKey: "course" },
       {
         header: "Temp Password", accessorKey: "customId",
@@ -308,7 +292,8 @@ export function UserManagement() {
       { header: "Warden ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Email", accessorKey: "email" },
-      { header: "Block", accessorKey: "block" },
+      { header: "Contact", accessorKey: "contact" },
+      { header: "Building", accessorKey: "buildingType" },
       {
         header: "Temp Password", accessorKey: "customId",
         cell: (row) => (
@@ -333,6 +318,7 @@ export function UserManagement() {
       { header: "ID", accessorKey: "customId" },
       { header: "Name", accessorKey: "name" },
       { header: "Email", accessorKey: "email" },
+      { header: "Contact", accessorKey: "contact" },
       { header: "Department", accessorKey: "department" },
       {
         header: "Temp Password", accessorKey: "customId",
@@ -383,7 +369,7 @@ export function UserManagement() {
 
   const roleConfigs = {
     student: { icon: Users, label: "Students", color: "text-blue-500", extraLabel: "Course / Year" },
-    warden: { icon: UserCheck, label: "Wardens", color: "text-emerald-500", extraLabel: "Assigned Block" },
+    warden: { icon: UserCheck, label: "Wardens", color: "text-emerald-500", extraLabel: "Building Type (Boys/Girls)" },
     "chief-warden": { icon: ShieldCheck, label: "Chief Warden", color: "text-purple-500", extraLabel: "Department" },
     staff: { icon: Users, label: "Staff", color: "text-orange-500", extraLabel: "Role / Dept" },
   };
@@ -460,13 +446,20 @@ export function UserManagement() {
                     placeholder="Enter full name"
                     required
                   />
-                  {/* Staff uses Contact Number, others use Email */}
                   <FormInput
-                    label={activeRole === "staff" ? "Contact Number" : "Email Address"}
-                    type={activeRole === "staff" ? "tel" : "email"}
+                    label="Email Address"
+                    type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder={activeRole === "staff" ? "e.g. 9876543210" : "name@example.com"}
+                    placeholder="name@example.com"
+                    required
+                  />
+                  <FormInput
+                    label="Contact Number"
+                    type="tel"
+                    value={formData.contact}
+                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                    placeholder="e.g. 9876543210"
                     required
                   />
                   <FormInput
@@ -561,7 +554,7 @@ export function UserManagement() {
                                   <p className="text-[10px] text-muted-foreground uppercase">{u.id}</p>
                                 </div>
                                 <button
-                                  onClick={() => handleDeleteUser(u.id)}
+                                  onClick={() => handleDeleteUser(u.id, u._id)}
                                   className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all sm:opacity-0 sm:group-hover:opacity-100"
                                 >
                                   <Check size={16} />
@@ -641,13 +634,23 @@ export function UserManagement() {
                 <input
                   type="text"
                   placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary outline-none"
                 />
               </div>
             </div>
           </div>
           <div className="overflow-x-auto rounded-xl border border-border/50">
-            <DataTable columns={columns[activeRole]} data={users[activeRole]} />
+            <DataTable 
+              columns={columns[activeRole]} 
+              data={users[activeRole].filter(u => 
+                u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                u.customId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                u.id?.toLowerCase().includes(searchTerm.toLowerCase())
+              )} 
+            />
           </div>
         </div>
       </div>

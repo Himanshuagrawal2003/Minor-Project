@@ -1,4 +1,8 @@
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+
 import dotenv from "dotenv";
 import cors from "cors";
 import morgan from "morgan";
@@ -14,21 +18,30 @@ import messRoutes from "./routes/messRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
 import emergencyRoutes from "./routes/emergencyRoutes.js";
 
-// 🔥 Load env first
+
 dotenv.config();
 
-// 🔥 Debug logs (important)
 console.log("ENV PORT:", process.env.PORT);
 
-// 🔥 Connect DB
 connectDB();
 
 const app = express();
 
-// Middlewares
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
+
+// Set up static folder for uploads
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, "uploads");
+const noticesDir = path.join(uploadsDir, "notices");
+
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+if (!fs.existsSync(noticesDir)) fs.mkdirSync(noticesDir);
+
+app.use("/uploads", express.static(uploadsDir));
+
 
 // Routes
 app.use("/api/users", userRoutes);
@@ -45,7 +58,6 @@ app.get("/", (req, res) => {
     res.send("API Running...");
 });
 
-// 🔥 FIX: fallback port
 // Global Error Handler
 app.use((err, req, res, next) => {
     console.error("GLOBAL ERROR:", err.message);
@@ -60,5 +72,5 @@ const PORT = process.env.PORT || 5000;
 
 // 🔥 START SERVER
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(` Server running on port ${PORT}`);
 });

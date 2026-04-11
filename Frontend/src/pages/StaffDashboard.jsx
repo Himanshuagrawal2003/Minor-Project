@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { DashboardCard } from '../components/DashboardCard';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { Wrench, CheckCircle, Clock, BellRing, Megaphone, Calendar, User, Eye, X, Save, Loader2 } from 'lucide-react';
+import { Wrench, CheckCircle, Clock, BellRing, Megaphone, Calendar, User, Eye, X, Save, Loader2, Paperclip, Download, FileText } from 'lucide-react';
+
 import { api } from '../services/api';
 import { cn } from '../lib/utils';
 
@@ -124,7 +125,14 @@ export function StaffDashboard() {
     }
   ];
 
+  const getAttachmentUrl = (url) => {
+    if (!url) return "#";
+    const backendUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    return `${backendUrl}${url}`;
+  };
+
   return (
+
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -204,6 +212,18 @@ export function StaffDashboard() {
                       {notice.priority}
                     </span>
                   </div>
+                  {notice.attachment && (
+                    <a
+                      href={getAttachmentUrl(notice.attachment.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-[10px] text-primary hover:underline mt-2 pt-1 border-t border-border/10 group/att"
+                    >
+                      <FileText size={10} className="shrink-0" />
+                      <span className="truncate flex-1 font-medium">{notice.attachment.name}</span>
+                      <Download size={10} className="shrink-0 opacity-60 group-hover/att:opacity-100" />
+                    </a>
+                  )}
                 </div>
               ))
             ) : (

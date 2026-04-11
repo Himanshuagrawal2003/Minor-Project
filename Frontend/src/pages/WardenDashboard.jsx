@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardCard } from '../components/DashboardCard';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { Users, AlertCircle, CheckCircle2, UserCheck, Loader2 } from 'lucide-react';
+import { AlertCircle, UserCheck, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 
 export function WardenDashboard() {
@@ -60,7 +60,8 @@ export function WardenDashboard() {
       const dashRes = await api.get('/dashboard');
       setData(dashRes);
     } catch (err) {
-      alert("Action failed");
+      console.error("Action error:", err);
+      alert("Action failed: " + (err.response?.data?.message || err.message));
     }
   };
 

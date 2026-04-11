@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BedDouble, Users, UserPlus, Search, Filter, FileSpreadsheet, Upload, Download, Check, AlertCircle, Loader2, List, Trash2, Calendar, Hash, Plus, Edit2, X } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
@@ -10,7 +10,6 @@ import * as XLSX from 'xlsx';
 export function RoomAllotment() {
   const [searchParams] = useSearchParams();
   const preSelectedId = searchParams.get('studentId');
-  const role = localStorage.getItem('role');
   const [viewMode, setViewMode] = useState('list'); // 'list', 'manage', 'checkout'
   const [searchTerm, setSearchTerm] = useState('');
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
@@ -19,6 +18,7 @@ export function RoomAllotment() {
   const [students, setStudents] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [allotments, setAllotments] = useState([]);
+  const [backendMesses, setBackendMesses] = useState([]);
 
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
@@ -31,7 +31,9 @@ export function RoomAllotment() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [editingAllotment, setEditingAllotment] = useState(null);
   const [checkoutSearchTerm, setCheckoutSearchTerm] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [capacityFilter, setCapacityFilter] = useState('all');
+  const [buildingFilter, setBuildingFilter] = useState('all');
   const [checkoutTab, setCheckoutTab] = useState('manual'); // 'manual' or 'bulk'
 
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
@@ -51,6 +53,48 @@ export function RoomAllotment() {
       const roomList = roomRes.rooms || [];
       setRooms(roomList);
 
+      try {
+        // Fetch formally registered messes
+        const messRes = await api.get('/mess/list');
+        const formalMesses = Array.isArray(messRes) ? messRes : [];
+
+        // Fetch distinct messes from menus in case they only exist there
+        const menuMessesRes = await api.get('/mess/all');
+        const menuMesses = Array.isArray(menuMessesRes) ? menuMessesRes : [];
+
+        // Combine them ensuring no duplicates via case-insensitive messId/name
+        const combinedMap = new Map();
+
+        formalMesses.forEach(m => {
+          if (!m.messId && !m.name) return;
+          const key = String(m.messId || m.name).toLowerCase().replace(/[-\s]+/g, '');
+          combinedMap.set(key, m);
+        });
+
+        menuMesses.forEach(id => {
+          if (!id) return;
+          const key = String(id).toLowerCase().replace(/[-\s]+/g, '');
+          const existsByName = Array.from(combinedMap.values()).some(
+            m => String(m.name || '').toLowerCase().replace(/[-\s]+/g, '') === key
+          );
+
+          if (!combinedMap.has(key) && !existsByName) {
+            combinedMap.set(key, { messId: String(id), name: String(id), isActive: true });
+          }
+        });
+        
+        const combinedList = Array.from(combinedMap.values());
+        setBackendMesses(combinedList);
+        
+        // If there are messes but none selected, select the first one
+        if (combinedList.length > 0 && !selectedMess) {
+          const firstMess = combinedList[0];
+          setSelectedMess(firstMess.messId || firstMess.name);
+        }
+      } catch (err) {
+        console.error("Failed to fetch messes", err);
+      }
+
       // Derive allotments from users who have a roomNumber
       const activeAllotments = studentList.filter(s => s.roomNumber).map(s => {
         const roomInfo = roomList.find(r => r.number === s.roomNumber);
@@ -60,7 +104,8 @@ export function RoomAllotment() {
           room: {
             number: s.roomNumber,
             capacity: roomInfo?.capacity || 3,
-            block: s.block || roomInfo?.block || 'A'
+            block: s.block || roomInfo?.block || 'A',
+            type: roomInfo?.type || s.buildingType || 'Boys'
           },
           messId: s.messId || 'None',
           date: s.updatedAt ? new Date(s.updatedAt).toLocaleDateString() : 'Recently',
@@ -75,9 +120,39 @@ export function RoomAllotment() {
     }
   };
 
-  const uniqueBlocks = [...new Set(rooms.map(r => r.block))].sort();
-  const availableMesses = [...new Set(students.filter(s => s.messId).map(s => s.messId))];
-  if (availableMesses.length === 0) availableMesses.push('Mess 1', 'Mess 2', 'Mess 3');
+  const uniqueBlocks = useMemo(() => [...new Set(rooms.map(r => r.block))].sort(), [rooms]);
+
+  const filteredBlocks = useMemo(() => {
+    const relevantRooms = buildingFilter === 'all'
+      ? rooms
+      : rooms.filter(r => r.type === buildingFilter);
+    return [...new Set(relevantRooms.map(r => r.block))].sort();
+  }, [rooms, buildingFilter]);
+
+  const availableMesses = useMemo(() => {
+    const activeBackendMesses = backendMesses.filter(m => m.isActive !== false);
+    const activeMap = new Map();
+
+    activeBackendMesses.forEach((m) => {
+      const key = String(m.messId || m.name).toLowerCase().replace(/[-\s]+/g, '');
+      if (key) activeMap.set(key, m);
+    });
+
+    const studentMessIds = [...new Set(students.filter((s) => s.messId).map((s) => s.messId))];
+    studentMessIds.forEach((id) => {
+      if (!id) return;
+      const key = String(id).toLowerCase().replace(/[-\s]+/g, '');
+      const existsByName = Array.from(activeMap.values()).some(
+        (m) => String(m.name || '').toLowerCase().replace(/[-\s]+/g, '') === key
+      );
+
+      if (!activeMap.has(key) && !existsByName) {
+        activeMap.set(key, { messId: String(id), name: String(id), isActive: true });
+      }
+    });
+
+    return Array.from(activeMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [backendMesses, students]);
 
   useEffect(() => {
     fetchData();
@@ -85,6 +160,7 @@ export function RoomAllotment() {
       setSelectedStudent(preSelectedId);
       setViewMode('manage');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preSelectedId]);
 
   const handleManualAllot = async (e) => {
@@ -132,29 +208,56 @@ export function RoomAllotment() {
         const worksheet = workbook.Sheets[firstSheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        console.log("Bulk Allotment Data:", jsonData);
         let successCount = 0;
         let errorCount = 0;
 
         for (const row of jsonData) {
-          const studentId = row.StudentID || row['Student ID'];
+          const rawId = row.StudentID || row['Student ID'];
+          const studentId = String(rawId || "").trim();
           const roomNumber = row.RoomNumber || row['Room Number'];
           const block = row.Block || 'A';
+          const building = row.Building || row['Building Type'] || row['Section'];
           const messId = row.MessID || row['Mess ID'] || 'Mess 1';
 
-          const student = students.find(s => s.customId === studentId || s._id === studentId);
+          console.log(`Processing student: ${studentId}, Room: ${roomNumber}`);
+          
+          const normalize = (id) => String(id || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const normalizedInput = normalize(studentId);
+
+          let student = students.find(s => 
+            normalize(s.customId) === normalizedInput || 
+            normalize(s._id) === normalizedInput
+          );
+
+          // Fallback: If ID matching fails, try to match by Name (case-insensitive)
+          if (!student) {
+             const studentName = (row.StudentName || row['Student Name'] || row.Name || "").trim().toLowerCase();
+             if (studentName) {
+                student = students.find(s => 
+                   s.name.trim().toLowerCase() === studentName ||
+                   normalize(s.name) === normalize(studentName)
+                );
+                if (student) console.log(`Matched student by name: ${student.name}`);
+             }
+          }
 
           if (student && roomNumber) {
             try {
+              console.log(`Allotting ${student.name} to ${roomNumber}`);
               await api.patch(`/users/${student._id}/allot`, {
                 roomNumber,
                 block,
+                buildingType: building,
                 messId
               });
               successCount++;
             } catch (err) {
+              console.error(`Failed to allot ${studentId}:`, err);
               errorCount++;
             }
           } else {
+            console.warn(`Student not found or RoomNumber missing for: ${studentId}`);
             errorCount++;
           }
         }
@@ -165,7 +268,7 @@ export function RoomAllotment() {
         } else {
           setUploadError('No valid allotments processed. Please check IDs and room numbers.');
         }
-      } catch (err) {
+      } catch {
         setUploadError('Failed to parse file.');
       } finally {
         setIsUploading(false);
@@ -222,7 +325,7 @@ export function RoomAllotment() {
         } else {
           setUploadError('No matching students found.');
         }
-      } catch (err) {
+      } catch {
         setUploadError('Failed to parse file.');
       } finally {
         setIsUploading(false);
@@ -334,7 +437,7 @@ export function RoomAllotment() {
 
     if (viewMode === 'manage') {
       templateData = [
-        { 'StudentID': 'S102', 'RoomNumber': 'A-102', 'Block': 'A', 'MessID': 'Mess 1' },
+        { 'StudentID': 'S102', 'RoomNumber': '102', 'Block': 'A', 'Building': 'Boys', 'MessID': 'Mess 1' },
       ];
       filename = "bulk_allotment_template.xlsx";
     } else {
@@ -400,9 +503,17 @@ export function RoomAllotment() {
   );
 
   const filteredRoomsForSelection = rooms.filter((room) => {
-    const occupancy = allotments.filter(a => a.room?.number === room.number).length;
+    // Basic occupancy check
+    const occupancy = allotments.filter(
+      a => a.room?.number === room.number &&
+        a.room?.block === room.block &&
+        a.room?.type === room.type
+    ).length;
     return occupancy < room.capacity;
-  }).filter(room => capacityFilter === 'all' || room.capacity.toString() === capacityFilter);
+  })
+    .filter(room => buildingFilter === 'all' || room.type === buildingFilter)
+    .filter(room => !selectedBlock || room.block === selectedBlock)
+    .filter(room => capacityFilter === 'all' || room.capacity.toString() === capacityFilter);
 
   if (isLoading) {
     return (
@@ -501,25 +612,64 @@ export function RoomAllotment() {
                       </select>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Select Room</label>
-                        <select className="text-[10px] font-bold text-primary bg-transparent outline-none cursor-pointer" value={capacityFilter} onChange={(e) => setCapacityFilter(e.target.value)}>
-                          <option value="all">All Capacities</option>
-                          <option value="3">3 Seater</option>
-                          <option value="4">4 Seater</option>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Building</label>
+                        <select
+                          className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium"
+                          value={buildingFilter}
+                          onChange={(e) => {
+                            setBuildingFilter(e.target.value);
+                            setSelectedBlock("");
+                            setSelectedRoom("");
+                          }}
+                        >
+                          <option value="all">All Buildings</option>
+                          <option value="Boys">Boys Hostel</option>
+                          <option value="Girls">Girls Hostel</option>
                         </select>
                       </div>
-                      <select className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium" value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} required>
-                        <option value="">Choose a room...</option>
-                        {filteredRoomsForSelection.map(r => <option key={r.number} value={r.number}>{r.number} - {r.capacity} Seater</option>)}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Block</label>
+                        <select
+                          className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium"
+                          value={selectedBlock}
+                          onChange={(e) => {
+                            setSelectedBlock(e.target.value);
+                            setSelectedRoom("");
+                          }}
+                        >
+                          <option value="">Select Block...</option>
+                          {filteredBlocks.map(b => <option key={b} value={b}>{b} Block</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Select Room</label>
+                      <select
+                        className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium"
+                        value={selectedRoom}
+                        onChange={(e) => setSelectedRoom(e.target.value)}
+                        required
+                        disabled={!selectedBlock}
+                      >
+                        <option value="">{!selectedBlock ? "Select block first..." : "Choose a room..."}</option>
+                        {filteredRoomsForSelection.map(r => (
+                          <option key={`${r.block}-${r.number}`} value={r.number}>
+                            Room {r.number} ({r.capacity} Seater)
+                          </option>
+                        ))}
                       </select>
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Assign Mess</label>
                       <select className="w-full h-12 px-4 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/40 outline-none transition-all text-sm font-medium" value={selectedMess} onChange={(e) => setSelectedMess(e.target.value)} required>
-                        {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
+                        {availableMesses.map(m => {
+                          const id = m.messId || m.name;
+                          return <option key={id} value={id}>{m.name} ({id})</option>
+                        })}
                       </select>
                     </div>
 
@@ -640,7 +790,10 @@ export function RoomAllotment() {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest pl-1">Select New Mess</label>
                 <select className="w-full h-12 px-4 rounded-xl border border-border bg-background outline-none transition-all font-medium" defaultValue={editingAllotment.messId} onChange={(e) => handleUpdateMess(editingAllotment.id, e.target.value)}>
-                  {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
+                  {availableMesses.map(m => {
+                    const id = m.messId || m.name;
+                    return <option key={id} value={id}>{m.name} ({id})</option>
+                  })}
                 </select>
               </div>
             </div>

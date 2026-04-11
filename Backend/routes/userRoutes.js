@@ -11,6 +11,7 @@ import {
     changePassword,
     forgotPassword,
     getWardenPerformance,
+    getRoommates,
 } from "../controllers/userController.js";
 
 import { protect, isAdmin, isAdminOrWarden } from "../middleware/authMiddleware.js";
@@ -27,6 +28,8 @@ router.post("/change-password", protect, changePassword);
 router.get("/profile", protect, (req, res) => {
     res.json(req.user);
 });
+
+router.get("/roommates", protect, getRoommates);
 
 
 router.post("/create", protect, isAdmin, createUser);

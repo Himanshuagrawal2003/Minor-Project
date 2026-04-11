@@ -18,7 +18,7 @@ const complaintSchema = new mongoose.Schema(
         status: {
             type: String,
             required: true,
-            enum: ["Pending", "In Progress", "Resolved", "Rejected"],
+            enum: ["Pending", "In Progress", "Escalated", "Resolved", "Rejected"],
             default: "Pending",
         },
         studentId: {
@@ -28,6 +28,7 @@ const complaintSchema = new mongoose.Schema(
         },
         studentName: { type: String, required: true },
         room: { type: String, required: true },
+        block: { type: String, required: true }, // Added block for hostel-wise filtering
         assignedStaffId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

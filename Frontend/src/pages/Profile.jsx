@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Building2, ShieldCheck, Key, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building2, ShieldCheck, Key, Check, AlertCircle, Loader2, Users } from 'lucide-react';
 import { FormInput } from '../components/FormInput';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
@@ -28,13 +28,15 @@ export function Profile() {
     room: '',
     course: '',
     block: '',
+    buildingType: '',
+    roomId: '',
     bio: ''
   });
 
   const [rooms, setRooms] = useState([]);
   const [formData, setFormData] = useState(profileData);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await api.get('/users/profile');
@@ -49,6 +51,8 @@ export function Profile() {
         room: data.roomNumber || '',
         course: data.course || '',
         block: data.block || '',
+        buildingType: data.buildingType || '',
+        roomId: data.roomId || '',
         bio: data.bio || ''
       };
       setProfileData(formattedData);
@@ -56,20 +60,22 @@ export function Profile() {
 
       const roomRes = await api.get('/rooms');
       setRooms(roomRes.rooms || []);
+
     } catch (err) {
       console.error("Failed to fetch profile", err);
       setMessage({ type: 'error', text: 'Failed to load profile data.' });
     } finally {
       setIsLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const uniqueBlocks = [...new Set(rooms.map(r => r.block))].sort();
   const availableRoomsInBlock = rooms.filter(r => r.block === formData.block);
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [fetchProfile]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -276,65 +282,91 @@ export function Profile() {
                 className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
                 required={isCompletionMode}
               />
-              <FormInput 
-                label="Course" 
-                value={isEditing ? formData.course : profileData.course}
-                onChange={(e) => setFormData({...formData, course: e.target.value})}
-                disabled={!isEditing}
-                className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
-                required={isCompletionMode}
-              />
-              {isEditing && !(role === 'student' && profileData.block) ? (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Building2 size={16} className="text-muted-foreground" /> Hostel Block
-                  </label>
-                  <select 
-                    value={formData.block}
-                    onChange={(e) => setFormData({...formData, block: e.target.value, room: ''})}
-                    className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
-                    required={isCompletionMode}
-                  >
-                    <option value="">Select Block</option>
-                    {uniqueBlocks.map(b => <option key={b} value={b}>Block {b}</option>)}
-                  </select>
-                </div>
-              ) : (
+              {role === 'student' && (
                 <FormInput 
-                  label="Hostel Block" 
-                  value={isEditing ? formData.block : profileData.block}
+                  label="Course" 
+                  value={isEditing ? formData.course : profileData.course}
+                  onChange={(e) => setFormData({...formData, course: e.target.value})}
+                  disabled={!isEditing}
+                  className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
+                  required={isCompletionMode}
+                />
+              )}
+              {(role === 'student' || role === 'warden') && (
+                isEditing && role === 'student' && isCompletionMode ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <Building2 size={16} className="text-muted-foreground" /> Hostel Block
+                    </label>
+                    <select 
+                      value={formData.block}
+                      onChange={(e) => setFormData({...formData, block: e.target.value, room: ''})}
+                      className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
+                      required={isCompletionMode}
+                    >
+                      <option value="">Select Block</option>
+                      {uniqueBlocks.map(b => <option key={b} value={b}>Block {b}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <FormInput 
+                    label="Hostel Block" 
+                    value={isEditing ? formData.block : profileData.block}
+                    disabled={true}
+                    className="opacity-70 bg-muted/30"
+                    icon={<Building2 size={16} />}
+                  />
+                )
+              )}
+
+              {role === 'student' && (
+                isEditing && isCompletionMode ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <Building2 size={16} className="text-muted-foreground" /> Room Number
+                    </label>
+                    <select 
+                      value={formData.room}
+                      onChange={(e) => setFormData({...formData, room: e.target.value})}
+                      disabled={!formData.block}
+                      className={cn(
+                        "flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all",
+                        !formData.block && "opacity-70 bg-muted/30 cursor-not-allowed"
+                      )}
+                      required={isCompletionMode}
+                    >
+                      <option value="">{formData.block ? 'Select Room' : 'Select Block First'}</option>
+                      {availableRoomsInBlock.map(r => <option key={r._id} value={r.number}>{r.number} ({r.capacity} Seater)</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <FormInput 
+                    label="Room Number" 
+                    value={isEditing ? formData.room : profileData.room}
+                    disabled={true}
+                    className="opacity-70 bg-muted/30"
+                    icon={<Building2 size={16} />}
+                  />
+                )
+              )}
+
+              {role === 'student' && profileData.buildingType && (
+                <FormInput 
+                  label="Hostel Building" 
+                  value={profileData.buildingType}
                   disabled={true}
                   className="opacity-70 bg-muted/30"
                   icon={<Building2 size={16} />}
                 />
               )}
-
-              {isEditing && !(role === 'student' && profileData.room) ? (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Building2 size={16} className="text-muted-foreground" /> Room Number
-                  </label>
-                  <select 
-                    value={formData.room}
-                    onChange={(e) => setFormData({...formData, room: e.target.value})}
-                    disabled={!formData.block}
-                    className={cn(
-                      "flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all",
-                      !formData.block && "opacity-70 bg-muted/30 cursor-not-allowed"
-                    )}
-                    required={isCompletionMode}
-                  >
-                    <option value="">{formData.block ? 'Select Room' : 'Select Block First'}</option>
-                    {availableRoomsInBlock.map(r => <option key={r._id} value={r.number}>{r.number} ({r.capacity} Seater)</option>)}
-                  </select>
-                </div>
-              ) : (
+              
+              {role === 'student' && profileData.roomId && (
                 <FormInput 
-                  label="Room Number" 
-                  value={isEditing ? formData.room : profileData.room}
+                  label="Unique Room ID" 
+                  value={profileData.roomId}
                   disabled={true}
-                  className="opacity-70 bg-muted/30"
-                  icon={<Building2 size={16} />}
+                  className="opacity-70 bg-muted/30 font-mono"
+                  icon={<Key size={16} />}
                 />
               )}
               <div className="md:col-span-2">

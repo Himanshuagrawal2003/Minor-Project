@@ -1,7 +1,6 @@
 import Complaint from "../models/Complaint.js";
 import User from "../models/User.js";
 
-// ✅ CREATE COMPLAINT (Student)
 export const createComplaint = async (req, res) => {
     try {
         console.log("Creating complaint for user:", req.user._id, req.user.role);
@@ -14,7 +13,8 @@ export const createComplaint = async (req, res) => {
             priority,
             studentId: req.user._id,
             studentName: req.user.name,
-            room: req.body.room || "Unknown",
+            room: req.user.roomNumber || "Unknown",
+            block: req.user.block || "Unknown", // Correctly save the student's actual block
         });
 
         const createdComplaint = await complaint.save();
@@ -26,23 +26,16 @@ export const createComplaint = async (req, res) => {
     }
 };
 
-// ✅ GET COMPLAINTS (Role-based)
 export const getComplaints = async (req, res) => {
     try {
-        console.log("Fetching complaints for role:", req.user.role);
-        let complaints;
+        console.log("Fetching all complaints for role:", req.user.role);
+        
+        // Return all complaints for everyone to see (Community Board)
+        const complaints = await Complaint.find({})
+            .populate('studentId', 'name roomNumber customId')
+            .sort({ createdAt: -1 });
 
-        if (req.user.role === "student") {
-            complaints = await Complaint.find({}).populate('studentId', 'name roomNumber customId').sort({ createdAt: -1 });
-            console.log(`Found ${complaints.length} total complaints for student ${req.user._id} (Public View)`);
-        } else if (req.user.role === "staff") {
-            complaints = await Complaint.find({ assignedStaffId: req.user._id }).populate('studentId', 'name roomNumber customId').sort({ createdAt: -1 });
-            console.log(`Found ${complaints.length} complaints assigned to staff ${req.user._id}`);
-        } else {
-            complaints = await Complaint.find({}).populate('studentId', 'name roomNumber customId').sort({ createdAt: -1 });
-            console.log(`Found ${complaints.length} total complaints for management`);
-        }
-
+        console.log(`Found ${complaints.length} total complaints for ${req.user.role}`);
         res.json(complaints);
     } catch (err) {
         console.error("Fetch complaints error:", err);

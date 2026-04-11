@@ -375,11 +375,11 @@ export function UserManagement() {
   };
 
   return (
-    <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Add and manage system users across all roles.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">User Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Add and manage system users across all roles.</p>
         </div>
       </div>
 
@@ -621,7 +621,7 @@ export function UserManagement() {
         {/* Right Panel */}
         <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h2 className="text-base sm:text-lg font-semibold tracking-tight">{roleConfigs[activeRole].label} List</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{roleConfigs[activeRole].label} List</h2>
             <div className="flex flex-col xs:flex-row items-stretch gap-2 w-full sm:w-auto">
               <button
                 onClick={downloadAllCredentials}
@@ -657,3 +657,5 @@ export function UserManagement() {
     </div>
   );
 }
+
+

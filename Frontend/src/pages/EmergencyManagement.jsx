@@ -61,10 +61,10 @@ export function EmergencyManagement() {
   });
 
   return (
-    <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Emergency Center
           </h1>
           <p className="text-muted-foreground mt-1">Monitor and respond to student emergencies in real-time.</p>
@@ -232,3 +232,5 @@ export function EmergencyManagement() {
     </div>
   );
 }
+
+

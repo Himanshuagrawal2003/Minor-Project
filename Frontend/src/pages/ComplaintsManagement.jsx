@@ -109,10 +109,10 @@ export function ComplaintsManagement() {
   };
 
   return (
-    <div className="space-y-6 pt-5 pb-12">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Complaints Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Complaints Management</h1>
           <p className="text-muted-foreground mt-1">View and take action on student complaints.</p>
         </div>
       </div>
@@ -225,7 +225,7 @@ export function ComplaintsManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center">
-              <h2 className="text-xl font-bold">{viewingComplaint._id.substring(viewingComplaint._id.length - 8)}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{viewingComplaint._id.substring(viewingComplaint._id.length - 8)}</h2>
               <button onClick={() => setViewingComplaint(null)} className="p-2 hover:bg-muted rounded-full">
                 <X size={20} />
               </button>
@@ -311,3 +311,4 @@ export function ComplaintsManagement() {
     </div>
   );
 }
+

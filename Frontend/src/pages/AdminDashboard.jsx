@@ -24,11 +24,11 @@ export function AdminDashboard() {
   }, []);
 
   const pendingComplaintsColumns = [
-    { header: 'ID', accessorKey: 'id', className: 'hidden sm:table-cell', cell: (row) => <span className="font-mono text-xs">#{row.id}</span> },
+    { header: 'ID', accessorKey: 'id', cell: (row) => <span className="font-mono text-xs">#{row.id}</span> },
     { header: 'Student', accessorKey: 'student' },
-    { header: 'Category', accessorKey: 'category', className: 'hidden sm:table-cell' },
+    { header: 'Category', accessorKey: 'category' },
     { header: 'Status', accessorKey: 'status', cell: (row) => <StatusBadge status={row.status} /> },
-    { header: 'Date', accessorKey: 'date', className: 'hidden lg:table-cell' }
+    { header: 'Date', accessorKey: 'date' }
   ];
 
   if (isLoading) {
@@ -49,11 +49,11 @@ export function AdminDashboard() {
   };
 
   return (
-    <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Admin Overview</h1>
-          <p className="text-muted-foreground mt-0.5 sm:mt-1 text-xs sm:text-sm font-medium">Manage users, rooms, and monitor hostel operations.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Admin Overview</h1>
+          <p className="text-muted-foreground mt-0.5 sm:mt-1 text-sm sm:text-base">Manage users, rooms, and monitor hostel operations.</p>
         </div>
       </div>
 
@@ -66,15 +66,15 @@ export function AdminDashboard() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2 mt-2 sm:mt-0">
-          <h2 className="text-sm sm:text-lg font-semibold tracking-tight uppercase text-muted-foreground/80">Recent Activity</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Recent Activity</h2>
           <button className="text-[10px] sm:text-sm font-bold text-primary hover:underline uppercase tracking-wider whitespace-nowrap shrink-0 bg-primary/5 px-2 py-1 rounded-md">
             View All
           </button>
         </div>
-        <div className="rounded-2xl border border-border/50 shadow-sm overflow-x-auto">
-          <DataTable columns={pendingComplaintsColumns} data={stats.recentComplaints} />
-        </div>
+        <DataTable columns={pendingComplaintsColumns} data={stats.recentComplaints} />
       </div>
     </div>
   );
 }
+
+

@@ -64,12 +64,12 @@ export function LeaveRequest() {
    };
 
    return (
-      <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full pb-8">
          {/* Header */}
          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
             <div>
-               <h1 className="text-2xl font-bold tracking-tight">Leave & No Due</h1>
-               <p className="text-muted-foreground mt-1 text-sm font-medium">Apply for temporary leaves or permanent checkouts.</p>
+               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Leave & No Due</h1>
+               <p className="text-muted-foreground mt-1 text-sm sm:text-base">Apply for temporary leaves or permanent checkouts.</p>
             </div>
 
             <button
@@ -98,7 +98,7 @@ export function LeaveRequest() {
                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto pt-24 pb-12">
                   <div className="glass-card w-full max-w-lg overflow-hidden border border-border/50 shadow-2xl relative">
                      <div className="p-6 bg-muted/30 border-b border-border/50 flex justify-between items-center sticky top-0 z-10 backdrop-blur-md">
-                        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                            <FileCheck size={20} className="text-primary" /> Application Form
                         </h2>
                         <button onClick={() => setIsFormOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted/50">
@@ -250,3 +250,5 @@ export function LeaveRequest() {
       </div>
    );
 }
+
+

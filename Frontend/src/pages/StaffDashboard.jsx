@@ -136,8 +136,8 @@ export function StaffDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Staff Portal</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage assignments and view notices for {staffName}.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Staff Portal</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Manage assignments and view notices for {staffName}.</p>
         </div>
       </div>
 
@@ -160,7 +160,7 @@ export function StaffDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Current Assignments</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Current Assignments</h2>
           </div>
           <DataTable columns={taskColumns} data={assignedComplaints} />
           {isLoading && (
@@ -178,7 +178,7 @@ export function StaffDashboard() {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Notice Board</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Notice Board</h2>
             <BellRing size={18} className="text-primary animate-pulse" />
           </div>
           
@@ -240,7 +240,7 @@ export function StaffDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center bg-muted/20">
-              <h2 className="text-xl font-bold flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 <Wrench className="text-primary" size={20} />
                 Manage Task: {viewingComplaint.id}
               </h2>
@@ -310,3 +310,4 @@ export function StaffDashboard() {
     </div>
   );
 }
+

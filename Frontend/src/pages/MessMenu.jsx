@@ -32,11 +32,11 @@ export function MessMenu() {
     try {
       setIsLoading(true);
       const data = await api.get('/mess');
-      
+
       // Transform flat array into nested object { messId: { day: { breakfast, lunch, dinner } } }
       const nested = {};
       const messes = new Set();
-      
+
       data.forEach(item => {
         if (!nested[item.messId]) nested[item.messId] = {};
         nested[item.messId][item.day] = item.meals;
@@ -45,7 +45,7 @@ export function MessMenu() {
 
       const messList = Array.from(messes);
       if (messList.length === 0) messList.push('Default Mess');
-      
+
       setAvailableMesses(messList);
       setAllMenus(nested);
 
@@ -103,10 +103,10 @@ export function MessMenu() {
 
   const saveMenu = async () => {
     try {
-      await api.post('/mess/menu', { 
-        messId: selectedMess, 
-        day: selectedDay, 
-        meals: editForm 
+      await api.post('/mess/menu', {
+        messId: selectedMess,
+        day: selectedDay,
+        meals: editForm
       });
       fetchMenuData();
       setIsEditing(false);
@@ -135,12 +135,12 @@ export function MessMenu() {
       alert("Cannot delete the Default Mess. You can only clear its items.");
       return;
     }
-    
+
     if (window.confirm(`Are you sure you want to permanently delete '${selectedMess}' and all its menus? This action cannot be undone.`)) {
       try {
         setIsDeletingMess(true);
         await api.delete(`/mess/menu/${selectedMess}`);
-        fetchMenuData(); 
+        fetchMenuData();
       } catch (err) {
         alert(err.response?.data?.message || "Failed to delete mess");
       } finally {
@@ -163,11 +163,11 @@ export function MessMenu() {
       alert("A mess with this name already exists.");
       return;
     }
-    
+
     try {
       setIsSavingRename(true);
       await api.put('/mess/rename', { oldMessId: selectedMess, newMessId: renameInput.trim() });
-      fetchMenuData(); 
+      fetchMenuData();
       setIsRenamingMess(false);
     } catch (err) {
       alert(err.response?.data?.message || "Failed to rename mess");
@@ -191,11 +191,11 @@ export function MessMenu() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-2">
         <div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <h1 className="text-2xl font-bold tracking-tight shrink-0 text-foreground">Mess Menu</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Mess Menu</h1>
 
             <div className="relative flex items-center bg-muted/40 backdrop-blur-md rounded-xl border border-border/50 px-3 py-1.5 shadow-sm">
               <Building2 size={16} className="text-primary mr-2" />
@@ -203,7 +203,7 @@ export function MessMenu() {
                 <span className="text-sm font-bold text-foreground pr-1 opacity-90">{selectedMess || 'Select Mess'}</span>
               ) : isRenamingMess ? (
                 <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-200">
-                  <input 
+                  <input
                     type="text"
                     value={renameInput}
                     onChange={(e) => setRenameInput(e.target.value)}
@@ -220,9 +220,9 @@ export function MessMenu() {
                   </button>
                 </div>
               ) : (
-                <select 
-                  value={selectedMess} 
-                  onChange={(e) => setSelectedMess(e.target.value)} 
+                <select
+                  value={selectedMess}
+                  onChange={(e) => setSelectedMess(e.target.value)}
                   className="bg-transparent text-sm font-bold text-foreground outline-none cursor-pointer appearance-none pr-4"
                 >
                   {availableMesses.map(m => <option key={m} value={m}>{m}</option>)}
@@ -234,7 +234,7 @@ export function MessMenu() {
               <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
                 {isAddingMess ? (
                   <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-2 duration-300">
-                    <input 
+                    <input
                       type="text"
                       value={newMessName}
                       onChange={(e) => setNewMessName(e.target.value)}
@@ -254,7 +254,7 @@ export function MessMenu() {
                   </div>
                 ) : (
                   <>
-                    <button 
+                    <button
                       onClick={() => setIsAddingMess(true)}
                       className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 rounded-lg transition-colors border border-primary/20"
                       title="Add New Mess"
@@ -263,14 +263,14 @@ export function MessMenu() {
                     </button>
                     {selectedMess !== 'Default Mess' && (
                       <>
-                        <button 
+                        <button
                           onClick={startRenaming}
                           className="h-9 w-9 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors border border-blue-500/20"
                           title="Rename Mess"
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={handleDeleteMess}
                           disabled={isDeletingMess}
                           className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-lg transition-colors border border-destructive/20 disabled:opacity-50"
@@ -454,3 +454,5 @@ export function MessMenu() {
     </div>
   );
 }
+
+

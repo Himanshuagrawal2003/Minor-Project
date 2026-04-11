@@ -72,11 +72,11 @@ export function StudentDashboard() {
   const userMess = dashboardData?.studentStats?.messId || '';
 
   return (
-    <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back, {userName}!</h1>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Welcome back, {userName}!</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Room {userRoom} {userBlock && `• Block ${userBlock}`} {userMess && `• Mess: ${userMess}`}
           </p>
         </div>
@@ -90,7 +90,7 @@ export function StudentDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-semibold tracking-tight">Notice Board</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Notice Board</h2>
           <div className="glass-card divide-y divide-border/50">
             {notices.length > 0 ? notices.map(notice => (
               <div key={notice._id} className="p-4 hover:bg-muted/30 transition-colors">
@@ -138,7 +138,7 @@ export function StudentDashboard() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold tracking-tight">Today's Mess Menu</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Today's Mess Menu</h2>
           <div className="glass-card overflow-hidden">
             {todayMenu ? (
               <div className="divide-y divide-border/30">
@@ -172,3 +172,5 @@ export function StudentDashboard() {
     </div>
   );
 }
+
+

@@ -524,12 +524,12 @@ export function RoomAllotment() {
   }
 
   return (
-    <div className="space-y-6 pt-5 pb-12">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Room Management</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Assign and monitor hostel room distribution.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Room Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Assign and monitor hostel room distribution.</p>
         </div>
 
         <div className="flex gap-1 p-1 bg-muted/40 backdrop-blur-md rounded-2xl border border-border/50 w-full sm:w-auto overflow-x-auto no-scrollbar">
@@ -549,27 +549,7 @@ export function RoomAllotment() {
             <button onClick={downloadAllotments} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-bold hover:bg-primary/20 transition-all active:scale-95 duration-200"><Download size={18} /> Export <span className="hidden sm:inline">to Excel</span></button>
           </div>
 
-          <div className="hidden md:block overflow-hidden rounded-2xl border border-border/50 shadow-sm"><DataTable columns={tableColumns} data={filteredAllotments} /></div>
-
-          {/* Mobile View */}
-          <div className="grid grid-cols-1 gap-4 md:hidden">
-            {filteredAllotments.length > 0 ? filteredAllotments.map((a) => (
-              <div key={a.id} className="glass-card p-5 border border-border/50 space-y-4 hover:border-primary/30 transition-all">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Users size={20} /></div>
-                    <div><h3 className="font-bold text-sm">{a.student?.name}</h3><p className="text-[10px] text-muted-foreground uppercase font-medium">{a.student?.id}</p></div>
-                  </div>
-                  <StatusBadge status={a.status} />
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/30">
-                  <div className="space-y-1"><p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5"><Hash size={10} /> Room</p><p className="text-sm font-bold text-primary">{a.room?.number}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5"><Calendar size={10} /> Allotted On</p><p className="text-sm font-medium text-foreground">{a.date}</p></div>
-                </div>
-                <button onClick={() => handleDeleteAllotment(a.id)} className="w-full py-2.5 bg-destructive/5 text-destructive border border-destructive/10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-destructive/10 transition-all"><Trash2 size={14} /> Check Out Student</button>
-              </div>
-            )) : <div className="p-12 text-center rounded-2xl border-2 border-dashed border-border/40"><Search size={32} className="mx-auto text-muted-foreground/30 mb-3" /><p className="text-sm text-muted-foreground font-medium">No allotments found matching your search.</p></div>}
-          </div>
+          <DataTable columns={tableColumns} data={filteredAllotments} />
         </div>
       ) : viewMode === 'manage' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -694,7 +674,7 @@ export function RoomAllotment() {
 
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 underline underline-offset-8 decoration-primary/20"><Users size={16} className="text-primary" /> Live Vacancy Dashboard</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground"><Users size={16} className="text-primary" /> Live Vacancy Dashboard</h2>
               <button
                 onClick={() => { setEditingRoom(null); setRoomFormData({ number: '', block: 'A', capacity: 3, type: 'Boys' }); setIsRoomModalOpen(true); }}
                 className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-xs font-bold hover:bg-primary/20 transition-all"
@@ -779,7 +759,7 @@ export function RoomAllotment() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-background border border-border rounded-3xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Re-allot Mess</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Re-allot Mess</h2>
               <button onClick={() => setEditingAllotment(null)} className="p-2 hover:bg-muted rounded-full transition-colors"><X size={20} /></button>
             </div>
             <div className="space-y-6">
@@ -807,7 +787,7 @@ export function RoomAllotment() {
           <div className="bg-background border border-border/50 rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-8">
               <div>
-                <h2 className="text-2xl font-black tracking-tight">{editingRoom ? 'Edit Room' : 'Add New Room'}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{editingRoom ? 'Edit Room' : 'Add New Room'}</h2>
                 <p className="text-xs text-muted-foreground mt-1 font-bold uppercase tracking-widest">Configuration Panel</p>
               </div>
               <button onClick={() => setIsRoomModalOpen(false)} className="p-2.5 hover:bg-muted rounded-xl transition-all"><X size={22} /></button>
@@ -886,3 +866,5 @@ export function RoomAllotment() {
     </div>
   );
 }
+
+

@@ -30,22 +30,7 @@ export function Login() {
     }
   }, [navigate]);
 
-  // Pre-fill credentials based on selected role
-  React.useEffect(() => {
-    // Only pre-fill if fields are basically empty or default-looking
-    const isDeafultEmail = email === '' || email.includes('@hostel.com') || email === 'admin@gmail.com';
-    
-    if (isDeafultEmail) {
-      if (selectedRole === 'admin') {
-        setEmail('admin@gmail.com');
-        setPassword('123456');
-      } else {
-        setEmail(`${selectedRole}@hostel.com`);
-        setPassword(`${selectedRole}123`);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRole]);
+  // Removed auto-fill for production
 
   const handleLogin = async (e) => {
     e.preventDefault();

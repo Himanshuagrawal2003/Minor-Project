@@ -106,11 +106,11 @@ export function MessManagement() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mess Management</h1>
-          <p className="text-muted-foreground text-sm">Register and manage mess facilities across the campus.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Mess Management</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Register and manage mess facilities across the campus.</p>
         </div>
         <button
           onClick={() => {
@@ -118,22 +118,20 @@ export function MessManagement() {
             setFormData({ name: '', description: '', location: '', capacity: 200 });
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="w-full sm:w-auto flex justify-center items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 sm:py-2 rounded-xl font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
         >
           <Plus size={20} />
           Add New Mess
         </button>
       </div>
 
-      <div className="glass-card overflow-hidden">
-        <DataTable columns={columns} data={messes} />
-      </div>
+      <DataTable columns={columns} data={messes} />
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">{editingMess ? 'Edit Mess' : 'Create New Mess'}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{editingMess ? 'Edit Mess' : 'Create New Mess'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X size={24} />
               </button>
@@ -201,3 +199,5 @@ export function MessManagement() {
     </div>
   );
 }
+
+

@@ -81,11 +81,11 @@ export function WardenDashboard() {
   };
 
   return (
-        <div className="px-3 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Warden Dashboard</h1>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">Overview of hostel activity and pending approvals.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Warden Dashboard</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Overview of hostel activity and pending approvals.</p>
         </div>
       </div>
 
@@ -97,7 +97,7 @@ export function WardenDashboard() {
       <div className="grid grid-cols-1 gap-6">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Pending Leave Approvals</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Pending Leave Approvals</h2>
             <button className="text-sm font-bold text-primary hover:underline uppercase tracking-tighter">View All</button>
           </div>
           <DataTable columns={pendingLeavesColumns} data={pendingLeavesData} />
@@ -106,3 +106,5 @@ export function WardenDashboard() {
     </div>
   );
 }
+
+

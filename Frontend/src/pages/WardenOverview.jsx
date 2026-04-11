@@ -41,11 +41,11 @@ export function WardenOverview() {
    }
 
    return (
-      <div className="space-y-8 pb-12 w-full max-w-7xl mx-auto">
+      <div className="space-y-4 sm:space-y-6 w-full pb-8">
          {/* Header */}
          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
             <div>
-               <h1 className="text-2xl font-bold tracking-tight">
+               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                   Warden Performance Overview
                </h1>
                <p className="text-muted-foreground mt-1">Monitor key metrics and block assignments for all Hostel Wardens.</p>
@@ -176,3 +176,5 @@ export function WardenOverview() {
       </div>
    );
 }
+
+

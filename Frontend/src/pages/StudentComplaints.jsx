@@ -86,8 +86,8 @@ export function StudentComplaints() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Hostel Complaints</h1>
-          <p className="text-muted-foreground mt-1 text-sm">View all complaints reported in your hostel block.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Hostel Complaints</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">View all complaints reported in your hostel block.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
           {/* Removed My/Community toggle as requested */}
@@ -220,7 +220,7 @@ export function StudentComplaints() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-border/50 flex justify-between items-center sticky top-0 bg-card z-10">
-              <h2 className="text-xl font-bold flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 <MessageSquare className="text-primary" size={20} />
                 New Complaint
               </h2>
@@ -296,7 +296,7 @@ export function StudentComplaints() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="glass-card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center">
-              <h2 className="text-xl font-bold">{viewingComplaint._id.substring(viewingComplaint._id.length - 8)}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{viewingComplaint._id.substring(viewingComplaint._id.length - 8)}</h2>
               <button onClick={() => setViewingComplaint(null)} className="p-2 hover:bg-muted rounded-full">
                 <X size={20} />
               </button>

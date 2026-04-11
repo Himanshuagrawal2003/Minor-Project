@@ -35,12 +35,12 @@ export function RoomDetails() {
 
   if (userRoom === "Pending") {
     return (
-      <div className="px-4 py-8 mx-auto max-w-5xl w-full">
+      <div className="space-y-4 sm:space-y-6 w-full pb-8">
         <div className="glass-card p-8 flex flex-col items-center justify-center text-center space-y-4 border-t-4 border-amber-500">
           <div className="h-20 w-20 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mb-2">
             <AlertCircle size={40} />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight">Room Not Allotted Yet</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Room Not Allotted Yet</h2>
           <p className="text-muted-foreground max-w-md">
             Your hostel room has not been assigned by the warden yet. Please check back later or contact the administration if you believe this is an error.
           </p>
@@ -50,10 +50,10 @@ export function RoomDetails() {
   }
 
   return (
-    <div className="px-4 py-4 sm:px-5 sm:py-6 md:px-6 md:py-6 mx-auto max-w-7xl w-full relative min-h-[calc(100vh-4rem)] space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Room Information
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -86,7 +86,7 @@ export function RoomDetails() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="glass-card overflow-hidden">
           <div className="px-6 py-4 border-b border-border/50 bg-muted/20">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
               <Users size={20} className="text-primary" /> Roommates
             </h2>
           </div>
@@ -123,7 +123,7 @@ export function RoomDetails() {
 
         <div className="glass-card overflow-hidden">
           <div className="px-6 py-4 border-b border-border/50 bg-muted/20">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
               <Building2 size={20} className="text-primary" /> Room Inventory
             </h2>
           </div>
@@ -152,3 +152,5 @@ export function RoomDetails() {
     </div>
   );
 }
+
+

@@ -156,7 +156,7 @@ export function Profile() {
             <AlertCircle className="text-primary" size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-primary">Complete Your Profile</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Complete Your Profile</h2>
             <p className="text-sm text-primary/80">Welcome! Since this is your first login, please provide your hostel and academic details below to access the full system.</p>
           </div>
         </div>
@@ -174,10 +174,10 @@ export function Profile() {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Your Profile</h1>
           <p className="text-muted-foreground mt-1">Manage your account settings and personal information.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           {isEditing ? (
             <>
               {!isCompletionMode && (
@@ -218,11 +218,41 @@ export function Profile() {
                 <User size={40} />
               </div>
             </div>
-            <h2 className="text-xl font-bold">{profileData.name}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{profileData.name}</h2>
             <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full mt-2">
               <ShieldCheck size={14} /> {role.toUpperCase()}
             </div>
             
+            {/* Mobile Actions */}
+            <div className="flex sm:hidden flex-col w-full gap-3 mt-6">
+              {isEditing ? (
+                <>
+                  <button 
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="w-full py-2.5 bg-primary text-primary-foreground flex items-center justify-center gap-2 rounded-xl hover:bg-primary/90 transition-all shadow-sm font-bold"
+                  >
+                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                    {isCompletionMode ? "Complete Setup" : "Save Changes"}
+                  </button>
+                  {!isCompletionMode && (
+                    <button 
+                      onClick={() => { setIsEditing(false); setFormData(profileData); }}
+                      className="w-full py-2.5 border border-border flex items-center justify-center gap-2 rounded-xl hover:bg-muted transition-all font-medium text-muted-foreground"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button 
+                 onClick={() => setIsEditing(true)}
+                 className="w-full py-2.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 font-bold rounded-xl transition-all flex items-center justify-center"
+                >
+                  Edit Profile
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="glass-card p-6 space-y-4">

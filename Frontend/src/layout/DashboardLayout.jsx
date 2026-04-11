@@ -52,7 +52,7 @@ export function DashboardLayout({ role }) {
       {/* Main Content */}
       <div
         className={cn(
-          "flex-1 flex flex-col h-screen transition-all duration-300 ease-in-out",
+          "flex-1 flex flex-col h-screen min-w-0 transition-all duration-300 ease-in-out",
           isSidebarCollapsed ? "md:ml-20" : "md:ml-64",
         )}
       >

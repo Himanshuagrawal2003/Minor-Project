@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardCard } from '../components/DashboardCard';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
@@ -6,6 +7,7 @@ import { Users, Building2, AlertTriangle, MessageSquare, Loader2 } from 'lucide-
 import { api } from '../services/api';
 
 export function AdminDashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,7 +69,7 @@ export function AdminDashboard() {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2 mt-2 sm:mt-0">
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Recent Activity</h2>
-          <button className="text-[10px] sm:text-sm font-bold text-primary hover:underline uppercase tracking-wider whitespace-nowrap shrink-0 bg-primary/5 px-2 py-1 rounded-md">
+          <button onClick={() => navigate('/admin/complaints')} className="text-[10px] sm:text-sm font-bold text-primary hover:underline uppercase tracking-wider whitespace-nowrap shrink-0 bg-primary/5 px-2 py-1 rounded-md">
             View All
           </button>
         </div>

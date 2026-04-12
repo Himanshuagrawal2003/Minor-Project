@@ -85,7 +85,7 @@ export function UserManagement() {
         // Refresh the list for current role
         const freshUsers = await api.get(`/users?role=${activeRole}`);
         setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
-        
+
         setFormData({ name: "", email: "", contact: "", extra: "" });
         setMessage({
           type: "success",
@@ -128,7 +128,7 @@ export function UserManagement() {
         }));
 
         const res = await api.post("/users/bulk", { users: usersToCreate, role: activeRole });
-        
+
         // Refresh list
         const freshUsers = await api.get(`/users?role=${activeRole}`);
         setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
@@ -165,14 +165,14 @@ export function UserManagement() {
         }
 
         const res = await api.post("/users/bulk-delete", { ids: idsToDelete });
-        
+
         // Refresh list
         const freshUsers = await api.get(`/users?role=${activeRole}`);
         setUsers(prev => ({ ...prev, [activeRole]: freshUsers.users }));
 
-        setMessage({ 
-          type: "success", 
-          text: `Successfully deleted ${res.count} accounts. ${idsToDelete.length - res.count > 0 ? `${idsToDelete.length - res.count} IDs not found.` : ""}` 
+        setMessage({
+          type: "success",
+          text: `Successfully deleted ${res.count} accounts. ${idsToDelete.length - res.count > 0 ? `${idsToDelete.length - res.count} IDs not found.` : ""}`
         });
         setSelectedFile(null);
       } catch (err) {
@@ -191,13 +191,13 @@ export function UserManagement() {
       try {
         setIsLoading(true);
         await api.delete(`/users/${mId}`);
-        
+
         // Update local state
         setUsers(prev => ({
           ...prev,
           [activeRole]: prev[activeRole].filter(u => u._id !== mId)
         }));
-        
+
         setMessage({ type: "success", text: "User deleted successfully." });
         setTimeout(() => setMessage({ type: "", text: "" }), 3000);
       } catch (err) {
@@ -234,15 +234,43 @@ export function UserManagement() {
   };
 
   const downloadAllCredentials = () => {
-    const data = users[activeRole].map((u) => ({
-      "Full Name": u.name || "N/A",
-      "User ID / Username": u.customId || u.id || "N/A",
-      "Email": u.email || "N/A",
-      "Contact": u.contact || "N/A",
-      "Temporary Password": u.customId || u.id || "123456",
-      Role: activeRole.toUpperCase(),
-    }));
+    if (!users[activeRole] || users[activeRole].length === 0) {
+      alert("No data available to download for this role.");
+      return;
+    }
+
+    const data = users[activeRole].map((u) => {
+      const rowData = {
+        "User ID": u.customId || u._id || "N/A",
+        "Full Name": u.name || "N/A",
+        "Email": u.email || "N/A",
+        "Contact": u.contact || "N/A",
+        "Temporary Password": u.customId || "123456",
+        "Role": activeRole.toUpperCase(),
+      };
+
+      if (activeRole === "student") rowData["Course"] = u.course || "N/A";
+      if (activeRole === "warden") rowData["Building Type"] = u.buildingType || "N/A";
+      if (activeRole === "chief-warden") rowData["Department"] = u.department || "N/A";
+      if (activeRole === "staff") rowData["Staff Role"] = u.role || "N/A";
+
+      return rowData;
+    });
+
     const ws = XLSX.utils.json_to_sheet(data);
+
+    // 🔥 Auto-resize excel columns
+    if (data.length > 0) {
+      const colWidths = Object.keys(data[0]).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...data.map((row) => (row[key] ? row[key].toString().length : 0))
+        );
+        return { wch: maxLength + 2 };
+      });
+      ws["!cols"] = colWidths;
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Credentials");
     XLSX.writeFile(wb, `${activeRole}_credentials_list.xlsx`);
@@ -272,16 +300,16 @@ export function UserManagement() {
         header: "Action", accessorKey: "_id",
         cell: (row) => (
           <div className="flex items-center gap-1">
-            <button 
+            <button
               onClick={() => navigate(`/admin/room-allotment?studentId=${row._id}`)}
-              className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-all" 
+              className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-all"
               title="Allot Room"
             >
               <BedDouble size={16} />
             </button>
-            <button 
-              onClick={() => handleDeleteUser(row.customId, row._id)} 
-              className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all" 
+            <button
+              onClick={() => handleDeleteUser(row.customId, row._id)}
+              className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
               title="Delete Student"
             >
               <Trash2 size={16} />
@@ -644,14 +672,14 @@ export function UserManagement() {
             </div>
           </div>
           <div className="overflow-x-auto rounded-xl border border-border/50">
-            <DataTable 
-              columns={columns[activeRole]} 
-              data={users[activeRole].filter(u => 
-                u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            <DataTable
+              columns={columns[activeRole]}
+              data={users[activeRole].filter(u =>
+                u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 u.customId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 u.id?.toLowerCase().includes(searchTerm.toLowerCase())
-              )} 
+              )}
             />
           </div>
         </div>

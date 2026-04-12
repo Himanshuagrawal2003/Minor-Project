@@ -235,9 +235,11 @@ export function UserManagement() {
 
   const downloadAllCredentials = () => {
     const data = users[activeRole].map((u) => ({
-      "Full Name": u.name,
-      "User ID / Username": u.id,
-      "Temporary Password": u.id,
+      "Full Name": u.name || "N/A",
+      "User ID / Username": u.customId || u.id || "N/A",
+      "Email": u.email || "N/A",
+      "Contact": u.contact || "N/A",
+      "Temporary Password": u.customId || u.id || "123456",
       Role: activeRole.toUpperCase(),
     }));
     const ws = XLSX.utils.json_to_sheet(data);

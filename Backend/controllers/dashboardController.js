@@ -18,7 +18,7 @@ export const getDashboard = async (req, res) => {
         const totalPendingComplaints = await Complaint.countDocuments({ status: "Pending" });
         const totalEscalatedComplaints = await Complaint.countDocuments({ status: "Escalated" });
         const totalPendingLeaves = await Leave.countDocuments({ status: "Pending" });
-        const totalActiveEmergencies = await Emergency.countDocuments({ status: { $ne: "Resolved" } });
+        const totalActiveEmergencies = await Emergency.countDocuments({ status: { $nin: ["Resolved", "False Alarm"] } });
 
         // --- RECENT COMPLAINTS ---
         const recentComplaintsRaw = await Complaint.find()

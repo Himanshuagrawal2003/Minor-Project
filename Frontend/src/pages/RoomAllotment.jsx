@@ -418,14 +418,37 @@ export function RoomAllotment() {
   };
 
   const downloadAllotments = () => {
+    if (!allotments || allotments.length === 0) {
+      alert("No allotments available to download.");
+      return;
+    }
+
     const data = allotments.map(a => ({
-      'Student ID': a.student?.id,
-      'Student Name': a.student?.name,
-      'Room Number': a.room?.number,
-      'Date': a.date,
-      'Status': a.status
+      'Student ID': a.student?.id || "N/A",
+      'Student Name': a.student?.name || "N/A",
+      'Building': a.room?.type || "N/A",
+      'Block': a.room?.block || "N/A",
+      'Room Number': a.room?.number || "N/A",
+      'Bed Capacity': a.room?.capacity || "N/A",
+      'Mess ID': a.messId || "N/A",
+      'Date': a.date || "N/A",
+      'Status': a.status || "N/A"
     }));
+
     const ws = XLSX.utils.json_to_sheet(data);
+
+    // 🔥 Auto-resize excel columns
+    if (data.length > 0) {
+      const colWidths = Object.keys(data[0]).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...data.map((row) => (row[key] ? row[key].toString().length : 0))
+        );
+        return { wch: maxLength + 2 };
+      });
+      ws["!cols"] = colWidths;
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Allotments");
     XLSX.writeFile(wb, "hostel_allotments_list.xlsx");
@@ -448,6 +471,19 @@ export function RoomAllotment() {
     }
 
     const ws = XLSX.utils.json_to_sheet(templateData);
+
+    // 🔥 Auto-resize excel columns
+    if (templateData.length > 0) {
+      const colWidths = Object.keys(templateData[0]).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...templateData.map((row) => (row[key] ? row[key].toString().length : 0))
+        );
+        return { wch: maxLength + 2 };
+      });
+      ws["!cols"] = colWidths;
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, filename);

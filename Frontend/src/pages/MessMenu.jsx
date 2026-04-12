@@ -454,5 +454,3 @@ export function MessMenu() {
     </div>
   );
 }
-
-

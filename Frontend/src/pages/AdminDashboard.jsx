@@ -63,7 +63,7 @@ export function AdminDashboard() {
         <DashboardCard title="Total Students" value={stats.totalStudents} icon={Users} />
         <DashboardCard title="Total Rooms" value={stats.totalRooms} icon={Building2} />
         <DashboardCard title="Pending Complaints" value={stats.pendingComplaints} icon={MessageSquare} className="border-amber-200 dark:border-amber-900/50" />
-        <DashboardCard title="Active Com" value={stats.activeIssues} icon={AlertTriangle} className="border-rose-200 dark:border-rose-900/50" />
+        <DashboardCard title="Action Required" value={stats.activeIssues} icon={AlertTriangle} className="border-rose-200 dark:border-rose-900/50" />
       </div>
 
       <div className="space-y-4">

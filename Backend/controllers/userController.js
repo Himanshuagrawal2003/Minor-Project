@@ -147,9 +147,12 @@ export const loginUser = async (req, res) => {
 
         const identifier = email || contact || customId;
 
-        // Find by email or contact or customId
+        const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const identifierRegex = new RegExp(`^${escapeRegex(identifier)}$`, 'i');
+
+        // Find by email or contact or customId (case-insensitive for email and customId)
         const user = await User.findOne({
-            $or: [{ email: identifier }, { contact: identifier }, { customId: identifier }],
+            $or: [{ email: identifierRegex }, { contact: identifier }, { customId: identifierRegex }],
         });
 
         if (user && (await user.matchPassword(password))) {

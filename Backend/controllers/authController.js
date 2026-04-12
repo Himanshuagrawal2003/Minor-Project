@@ -34,7 +34,10 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const emailRegex = new RegExp(`^${escapeRegex(email)}$`, 'i');
+    
+    const user = await User.findOne({ email: emailRegex });
 
     if (user && (await bcrypt.compare(password, user.password))) {
         res.json({

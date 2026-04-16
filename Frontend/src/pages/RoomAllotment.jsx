@@ -781,6 +781,7 @@ export function RoomAllotment() {
                       <div className="text-center"><p className="text-sm font-bold">{selectedFile ? selectedFile.name : 'Bulk Checkout Excel'}</p></div>
                     </div>
                     <button onClick={processBulkCheckout} disabled={isUploading || !selectedFile} className={cn("w-full py-4 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3", selectedFile ? "bg-destructive text-white" : "bg-muted text-muted-foreground")}>{isUploading ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />} Run Bulk Checkout</button>
+                    <button onClick={downloadTemplate} className="w-full py-3 text-xs font-bold border border-border rounded-xl hover:bg-muted transition-all flex items-center justify-center gap-2 group"><Download size={16} /> Download Checkout Template</button>
                   </div>
                 )}
                 {(uploadSuccess || uploadError) && (<div className={cn("mt-6 p-4 rounded-xl text-xs font-bold flex gap-3", uploadSuccess ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive")}>{uploadSuccess ? <Check size={16} /> : <AlertCircle size={16} />}<p>{uploadSuccess || uploadError}</p></div>)}

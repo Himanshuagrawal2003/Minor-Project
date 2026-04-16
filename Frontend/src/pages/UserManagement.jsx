@@ -215,7 +215,6 @@ export function UserManagement() {
     if (activeMethod === "bulk") {
       const extraHeader = activeRole === "student" ? "Course" : activeRole === "warden" ? "Block" : activeRole === "chief-warden" ? "Department" : "Role";
       templateData = [{
-        ID: activeRole === "student" ? "S101" : activeRole === "warden" ? "W201" : "ST301",
         Name: "John Doe",
         Email: "john@example.com",
         Contact: "9876543210",

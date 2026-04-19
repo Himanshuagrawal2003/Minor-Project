@@ -260,6 +260,7 @@ export const allotRoom = async (req, res) => {
                     roomNumber: room.number, 
                     block: room.block, 
                     buildingType: room.type,
+                    role: "student",
                     _id: { $ne: user._id } 
                 });
 
@@ -268,6 +269,7 @@ export const allotRoom = async (req, res) => {
                         roomNumber: room.number, 
                         block: room.block, 
                         buildingType: room.type,
+                        role: "student",
                         _id: { $ne: user._id }
                     }).select('name customId');
                     const occupantDetails = occupants.map(o => `${o.name} (${o.customId})`).join(', ');

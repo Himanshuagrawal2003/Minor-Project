@@ -106,9 +106,36 @@ export const getDashboard = async (req, res) => {
                 }
             }
 
-            const contacts = await User.find({
+            // --- EMERGENCY CONTACTS FILTERING ---
+            let effectiveBuildingType = buildingType;
+            
+            // If buildingType is missing but roomNumber exists, try to derive it
+            if (!effectiveBuildingType && req.user.roomNumber) {
+                const room = await Room.findOne({ number: req.user.roomNumber, block: req.user.block });
+                if (room) {
+                    effectiveBuildingType = room.type;
+                    // Also update user record for next time
+                    await User.findByIdAndUpdate(_id, { buildingType: effectiveBuildingType });
+                } else if (req.user.roomNumber.startsWith('B-')) {
+                    effectiveBuildingType = 'Boys';
+                } else if (req.user.roomNumber.startsWith('G-')) {
+                    effectiveBuildingType = 'Girls';
+                }
+            }
+
+            const contactQuery = {
                 role: { $in: ["warden", "chief-warden"] }
-            }).select("name contact role buildingType").lean();
+            };
+
+            if (effectiveBuildingType) {
+                contactQuery.$or = [
+                    { buildingType: effectiveBuildingType },
+                    { buildingType: "" },
+                    { buildingType: { $exists: false } }
+                ];
+            }
+
+            const contacts = await User.find(contactQuery).select("name contact role buildingType").lean();
 
             studentStats = {
                 myActive,

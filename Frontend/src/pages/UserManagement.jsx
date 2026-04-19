@@ -164,7 +164,10 @@ export function UserManagement() {
           throw new Error("No User IDs found in the file.");
         }
 
-        const res = await api.post("/users/bulk-delete", { ids: idsToDelete });
+        const res = await api.post("/users/bulk-delete", { 
+          ids: idsToDelete,
+          role: activeRole 
+        });
 
         // Refresh list
         const freshUsers = await api.get(`/users?role=${activeRole}`);
@@ -222,7 +225,9 @@ export function UserManagement() {
       }];
       filename = `${activeRole}_upload_template.xlsx`;
     } else {
-      templateData = [{ ID: "S101" }, { ID: "W201" }];
+      // Role-specific samples for delete template
+      const sampleId = activeRole === "student" ? "S-1234" : activeRole === "warden" ? "W-5678" : activeRole === "chief-warden" ? "CW-9012" : "ST-3456";
+      templateData = [{ ID: sampleId }];
       filename = `${activeRole}_delete_template.xlsx`;
     }
 

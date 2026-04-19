@@ -345,7 +345,7 @@ export const updateProfile = async (req, res) => {
 // ✅ BULK DELETE
 export const bulkDeleteUsers = async (req, res) => {
     try {
-        const { ids } = req.body;
+        const { ids, role } = req.body;
 
         if (!ids || !Array.isArray(ids)) {
             return res.status(400).json({ message: "Invalid IDs provided" });
@@ -354,12 +354,18 @@ export const bulkDeleteUsers = async (req, res) => {
         const validObjectIds = ids.filter(id => id && mongoose.Types.ObjectId.isValid(String(id)));
         const allIds = ids.map(id => String(id));
 
-        const result = await User.deleteMany({
+        const query = {
             $or: [
                 { _id: { $in: validObjectIds } },
                 { customId: { $in: allIds } }
             ]
-        });
+        };
+
+        if (role) {
+            query.role = role;
+        }
+
+        const result = await User.deleteMany(query);
 
         res.json({
             message: `Successfully deleted ${result.deletedCount} users`,

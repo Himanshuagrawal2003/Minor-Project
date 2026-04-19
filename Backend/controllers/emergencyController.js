@@ -19,6 +19,10 @@ export const getEmergencies = async (req, res) => {
 export const createEmergency = async (req, res) => {
   try {
     const student = await User.findById(req.user.id);
+    if (!req.body.type || !req.body.description) {
+        return res.status(400).json({ message: "All fields are required (Type and Description)." });
+    }
+
     const newEmergency = new Emergency({
       studentId: req.user.id,
       studentName: student.name,

@@ -25,6 +25,10 @@ export const getLeaves = async (req, res) => {
 export const createLeaveRequest = async (req, res) => {
   try {
     const { type, startDate, endDate, reason, noDuesCleared } = req.body;
+    
+    if (!type || !startDate || !endDate || !reason) {
+        return res.status(400).json({ message: "All fields are required (Type, Dates, and Reason)." });
+    }
     const leave = new Leave({
       studentId: req.user._id,
       studentName: req.user.name,

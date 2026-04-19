@@ -492,9 +492,12 @@ export function UserManagement() {
                     label="Contact Number"
                     type="tel"
                     value={formData.contact}
-                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                    placeholder="e.g. 9876543210"
+                    onChange={(e) => setFormData({ ...formData, contact: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    placeholder="10 digit number"
                     required
+                    pattern="[0-9]{10}"
+                    minLength={10}
+                    maxLength={10}
                   />
                   <FormInput
                     label={roleConfigs[activeRole].extraLabel}

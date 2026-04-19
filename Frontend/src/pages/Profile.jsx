@@ -297,12 +297,17 @@ export function Profile() {
               />
               <FormInput 
                 label="Phone Number" 
+                type="tel"
                 value={isEditing ? formData.phone : profileData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})}
                 disabled={!isEditing}
                 className={!isEditing ? "opacity-70 bg-muted/30" : "bg-background"}
                 icon={<Phone size={16} />}
-                required={isCompletionMode}
+                required={isCompletionMode || isEditing}
+                pattern="[0-9]{10}"
+                minLength={10}
+                maxLength={10}
+                placeholder="10 digit number"
               />
               <FormInput 
                 label="Department" 
@@ -323,61 +328,23 @@ export function Profile() {
                 />
               )}
               {(role === 'student' || role === 'warden') && (
-                isEditing && role === 'student' && isCompletionMode ? (
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                      <Building2 size={16} className="text-muted-foreground" /> Hostel Block
-                    </label>
-                    <select 
-                      value={formData.block}
-                      onChange={(e) => setFormData({...formData, block: e.target.value, room: ''})}
-                      className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
-                      required={isCompletionMode}
-                    >
-                      <option value="">Select Block</option>
-                      {uniqueBlocks.map(b => <option key={b} value={b}>Block {b}</option>)}
-                    </select>
-                  </div>
-                ) : (
-                  <FormInput 
-                    label="Hostel Block" 
-                    value={isEditing ? formData.block : profileData.block}
-                    disabled={true}
-                    className="opacity-70 bg-muted/30"
-                    icon={<Building2 size={16} />}
-                  />
-                )
+                <FormInput 
+                  label="Hostel Block" 
+                  value={isEditing ? formData.block : profileData.block}
+                  disabled={true}
+                  className="opacity-70 bg-muted/30"
+                  icon={<Building2 size={16} />}
+                />
               )}
 
               {role === 'student' && (
-                isEditing && isCompletionMode ? (
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                      <Building2 size={16} className="text-muted-foreground" /> Room Number
-                    </label>
-                    <select 
-                      value={formData.room}
-                      onChange={(e) => setFormData({...formData, room: e.target.value})}
-                      disabled={!formData.block}
-                      className={cn(
-                        "flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all",
-                        !formData.block && "opacity-70 bg-muted/30 cursor-not-allowed"
-                      )}
-                      required={isCompletionMode}
-                    >
-                      <option value="">{formData.block ? 'Select Room' : 'Select Block First'}</option>
-                      {availableRoomsInBlock.map(r => <option key={r._id} value={r.number}>{r.number} ({r.capacity} Seater)</option>)}
-                    </select>
-                  </div>
-                ) : (
-                  <FormInput 
-                    label="Room Number" 
-                    value={isEditing ? formData.room : profileData.room}
-                    disabled={true}
-                    className="opacity-70 bg-muted/30"
-                    icon={<Building2 size={16} />}
-                  />
-                )
+                <FormInput 
+                  label="Room Number" 
+                  value={isEditing ? formData.room : profileData.room}
+                  disabled={true}
+                  className="opacity-70 bg-muted/30"
+                  icon={<Building2 size={16} />}
+                />
               )}
 
               {role === 'student' && profileData.buildingType && (

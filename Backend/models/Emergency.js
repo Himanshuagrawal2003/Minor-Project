@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const emergencySchema = new mongoose.Schema({
   studentId: { type: String, required: true },
   studentName: { type: String, required: true },
-  room: { type: String },
+  room: { type: String, required: true },
   type: { 
     type: String, 
     required: true,

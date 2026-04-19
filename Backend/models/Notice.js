@@ -13,7 +13,7 @@ const NoticeSchema = new mongoose.Schema({
     enum: ['student', 'warden', 'chief-warden', 'staff', 'admin', 'all'],
     default: 'all'
   }],
-  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   attachment: {
     name: String,
     url: String,

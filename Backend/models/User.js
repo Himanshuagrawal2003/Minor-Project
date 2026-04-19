@@ -9,9 +9,19 @@ const userSchema = new mongoose.Schema(
             type: String,
             unique: true,
             sparse: true,
+            required: [true, "Email is required"],
         },
 
-        contact: String,
+        contact: {
+            type: String,
+            required: [true, "Contact number is required"],
+            validate: {
+                validator: function(v) {
+                    return /^\d{10}$/.test(v);
+                },
+                message: props => `${props.value} is not a valid 10-digit phone number!`
+            }
+        },
 
         role: {
             type: String,

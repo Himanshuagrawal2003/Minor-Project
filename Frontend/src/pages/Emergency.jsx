@@ -230,9 +230,9 @@ export function Emergency() {
                      <div className="space-y-2">
                         <div className="flex justify-between">
                            <label className="text-xs font-bold uppercase text-muted-foreground">Description</label>
-                           <span className="text-[10px] text-muted-foreground font-bold uppercase">Optional</span>
                         </div>
                         <textarea
+                           required
                            value={description}
                            onChange={(e) => setDescription(e.target.value)}
                            placeholder="Tell us what is happening..."

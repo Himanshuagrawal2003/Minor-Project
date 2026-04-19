@@ -5,6 +5,10 @@ export const createComplaint = async (req, res) => {
     try {
         console.log("Creating complaint for user:", req.user._id, req.user.role);
         const { title, description, category, priority } = req.body;
+        
+        if (!title || !description || !category || !priority) {
+            return res.status(400).json({ message: "All fields are required (Title, Description, Category, Priority)." });
+        }
 
         const complaint = new Complaint({
             title,

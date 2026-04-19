@@ -12,6 +12,15 @@ export const createUser = async (req, res) => {
     try {
         const { name, email, contact, role, extra } = req.body;
         
+        // 🚨 Basic Validation
+        if (!name || !email || !contact || !role || !extra) {
+            return res.status(400).json({ message: "All fields are required (Name, Email, Contact, Role, Extra)." });
+        }
+
+        if (!/^\d{10}$/.test(contact)) {
+            return res.status(400).json({ message: "Contact number must be exactly 10 digits." });
+        }
+        
         // 🚨 Duplicate Email Check
         if (email) {
             const existingUser = await User.findOne({ email });
@@ -99,6 +108,17 @@ export const bulkCreateUsers = async (req, res) => {
         const errors = [];
 
         for (let u of users) {
+             // 🚨 Basic Validation
+             if (!u.name || !u.email || !u.contact || !u.extra) {
+                errors.push(`${u.name || "Unknown"} skipped: All fields (Name, Email, Contact, Extra) are required.`);
+                continue;
+             }
+
+             if (!/^\d{10}$/.test(u.contact)) {
+                errors.push(`${u.name} skipped: Contact number must be exactly 10 digits.`);
+                continue;
+             }
+
              // 🚨 Skip duplicates in bulk import
              if (u.email) {
                 const existingUser = await User.findOne({ email: u.email });
@@ -239,7 +259,8 @@ export const allotRoom = async (req, res) => {
                 const currentOccupancy = await User.countDocuments({ 
                     roomNumber: room.number, 
                     block: room.block, 
-                    _id: { $ne: id } 
+                    buildingType: room.type,
+                    _id: { $ne: user._id } 
                 });
 
                 if (currentOccupancy >= room.capacity) {

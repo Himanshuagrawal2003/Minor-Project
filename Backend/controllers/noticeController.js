@@ -38,6 +38,10 @@ export const createNotice = async (req, res) => {
     console.log("[Notice] Attached file:", req.file);
 
     const { title, content, priority, targetRoles, existingAttachment } = req.body;
+
+    if (!title || !content) {
+        return res.status(400).json({ message: "Title and Content are required." });
+    }
     
     let attachment = undefined;
     if (req.file) {

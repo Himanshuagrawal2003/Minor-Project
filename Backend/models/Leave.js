@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 
 const LeaveSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  studentName: String, // Denormalized for quick access
-  room: String,
+  studentName: { type: String, required: true }, // Denormalized for quick access
+  room: { type: String, required: true },
   type: { 
     type: String, 
     enum: ['Weekend Pass', 'Medical Leave', 'Semester Leave', 'Permanent Checkout'],

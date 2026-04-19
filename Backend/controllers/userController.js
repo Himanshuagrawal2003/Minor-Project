@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import Complaint from "../models/Complaint.js";
 import Emergency from "../models/Emergency.js";
@@ -75,7 +76,13 @@ export const getUsers = async (req, res) => {
 // ✅ DELETE USER
 export const deleteUser = async (req, res) => {
     try {
-        await User.findByIdAndDelete(req.params.id);
+        const { id } = req.params;
+
+        if (mongoose.Types.ObjectId.isValid(id)) {
+            await User.findByIdAndDelete(id);
+        } else {
+            await User.findOneAndDelete({ customId: id });
+        }
 
         res.json({ message: "User deleted" });
 
@@ -192,7 +199,13 @@ export const allotRoom = async (req, res) => {
         const { id } = req.params;
         let { roomNumber, block, messId, buildingType } = req.body;
 
-        const user = await User.findById(id);
+        let user;
+        if (mongoose.Types.ObjectId.isValid(id)) {
+            user = await User.findById(id);
+        } else {
+            user = await User.findOne({ customId: id });
+        }
+
         if (!user) {
             return res.status(404).json({ message: "Student not found" });
         }
@@ -334,10 +347,17 @@ export const bulkDeleteUsers = async (req, res) => {
     try {
         const { ids } = req.body;
 
+        if (!ids || !Array.isArray(ids)) {
+            return res.status(400).json({ message: "Invalid IDs provided" });
+        }
+
+        const validObjectIds = ids.filter(id => id && mongoose.Types.ObjectId.isValid(String(id)));
+        const allIds = ids.map(id => String(id));
+
         const result = await User.deleteMany({
             $or: [
-                { _id: { $in: ids } },
-                { customId: { $in: ids } }
+                { _id: { $in: validObjectIds } },
+                { customId: { $in: allIds } }
             ]
         });
 

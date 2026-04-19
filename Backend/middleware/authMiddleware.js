@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import mongoose from "mongoose";
 
 export const protect = async (req, res, next) => {
     try {
@@ -14,6 +15,10 @@ export const protect = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        if (!mongoose.Types.ObjectId.isValid(decoded.id)) {
+            return res.status(401).json({ message: "Invalid token identification" });
+        }
 
         req.user = await User.findById(decoded.id).select("-password");
 

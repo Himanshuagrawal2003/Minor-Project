@@ -721,10 +721,15 @@ export function RoomAllotment() {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {rooms.map(r => {
-                const occupancy = allotments.filter(a => a.room?.number === r.number).length;
+                const occupants = allotments.filter(
+                  a => a.room?.number === r.number && 
+                      a.room?.block === r.block && 
+                      a.room?.type === r.type
+                );
+                const occupancy = occupants.length;
                 const isAvailable = occupancy < r.capacity;
                 return (
-                  <div key={r.number} className={cn("group p-6 glass-card border-none transition-all cursor-pointer relative overflow-hidden", isAvailable ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "bg-destructive/5 grayscale opacity-60")}>
+                  <div key={`${r.type}-${r.block}-${r.number}`} className={cn("group p-6 glass-card border-none transition-all cursor-pointer relative overflow-hidden", isAvailable ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "bg-destructive/5 grayscale opacity-60")}>
                     {/* Admin Actions Overlay */}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button
@@ -742,8 +747,28 @@ export function RoomAllotment() {
                     </div>
 
                     <div className="space-y-1">
-                      <span className={cn("text-2xl font-black tracking-tighter", isAvailable ? "text-emerald-600" : "text-destructive")}>{r.number}</span>
-                      <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground">{r.capacity} Seater ({r.block})</span><span className={cn("text-[11px] font-extrabold", isAvailable ? "text-emerald-700/70" : "text-destructive/70")}>{isAvailable ? `${r.capacity - occupancy} Beds` : 'Full'}</span></div>
+                      <div className="flex items-center justify-between">
+                        <span className={cn("text-2xl font-black tracking-tighter", isAvailable ? "text-emerald-600" : "text-destructive")}>{r.number}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-full">{r.type}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">{r.capacity} Seater (Block {r.block})</span>
+                        <span className={cn("text-[11px] font-extrabold", isAvailable ? "text-emerald-700/70" : "text-destructive/70")}>
+                          {isAvailable ? `${r.capacity - occupancy} Beds Free` : 'Room Full'}
+                        </span>
+                      </div>
+                      
+                      {/* Occupant Names Display */}
+                      <div className="mt-3 pt-2 border-t border-border/50">
+                        <div className="flex flex-wrap gap-1">
+                          {occupants.map(occ => (
+                            <span key={occ.id} className="text-[9px] bg-background/50 border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground font-medium truncate max-w-full" title={occ.student?.name}>
+                              {occ.student?.name.split(' ')[0]}
+                            </span>
+                          ))}
+                          {occupancy === 0 && <span className="text-[9px] text-muted-foreground/40 italic">Vacant</span>}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );

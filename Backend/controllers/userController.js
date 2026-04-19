@@ -264,10 +264,17 @@ export const allotRoom = async (req, res) => {
                 });
 
                 if (currentOccupancy >= room.capacity) {
-                    // If we only updated mess, still save that before erroring out on room
+                    const occupants = await User.find({ 
+                        roomNumber: room.number, 
+                        block: room.block, 
+                        buildingType: room.type,
+                        _id: { $ne: user._id }
+                    }).select('name customId');
+                    const occupantDetails = occupants.map(o => `${o.name} (${o.customId})`).join(', ');
+
                     await user.save();
                     return res.status(400).json({ 
-                        message: `Mess updated, but Room ${room.number} is full.`,
+                        message: `Room ${room.number} is FULL (${currentOccupancy}/${room.capacity}). Current occupants: ${occupantDetails || 'None detected'}`,
                         user 
                     });
                 }

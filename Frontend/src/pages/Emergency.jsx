@@ -65,7 +65,7 @@ export function Emergency() {
       {
          title: 'City Police',
          name: 'Emergency Services',
-         phone: '100',
+         phone: '112',
          icon: AlertTriangle,
          color: 'text-rose-600'
       }

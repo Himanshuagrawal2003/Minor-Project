@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  CalendarDays, 
-  Users, 
-  Building2, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  CalendarDays,
+  Users,
+  Building2,
   Coffee,
   LogOut,
   AlertTriangle,
@@ -24,7 +24,7 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
       { name: 'Dashboard', path: `/${role}/dashboard`, icon: LayoutDashboard }
     ];
 
-    switch(role) {
+    switch (role) {
       case 'student':
         return [
           ...commonLinks,
@@ -33,7 +33,7 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
           { name: 'Mess Menu', path: '/student/mess-menu', icon: Coffee },
           { name: 'Room Details', path: '/student/room', icon: Building2 },
           { name: 'Emergency', path: '/student/emergency', icon: AlertTriangle, danger: true },
-          
+
         ];
       case 'warden':
         return [
@@ -83,9 +83,9 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
           isMobile
             ? "w-64 translate-x-0 md:hidden"
             : cn(
-                "hidden md:flex md:translate-x-0",
-                isCollapsed ? "w-20" : "w-64"
-              )
+              "hidden md:flex md:translate-x-0",
+              isCollapsed ? "w-20" : "w-64"
+            )
         )}
       >
         <div className="flex h-16 shrink-0 items-center justify-center border-b border-border/50 px-4">

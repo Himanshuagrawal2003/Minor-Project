@@ -121,6 +121,7 @@ function App() {
           <Route path="/chief-warden/dashboard" element={<ChiefWardenDashboard />} />
           <Route path="/chief-warden/escalations" element={<Escalations />} />
           <Route path="/chief-warden/wardens" element={<WardenOverview />} />
+          <Route path="/chief-warden/complaints" element={<ComplaintsManagement />} />
           <Route path="/chief-warden/room-allotment" element={<RoomAllotment />} />
           <Route path="/chief-warden/leave" element={<LeaveManagement />} />
           <Route path="/chief-warden/notices" element={<NoticeManagement />} />

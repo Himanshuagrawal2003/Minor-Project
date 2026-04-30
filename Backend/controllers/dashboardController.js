@@ -67,25 +67,32 @@ export const getDashboard = async (req, res) => {
             const today = days[new Date().getDay()];
             const dayRegex = new RegExp(`^${today}$`, 'i');
 
-            // 1. Fetch fresh user data to ensure latest messId is used
+            // 1. Fetch all menus for today and filter manually for 100% consistency with MessMenu page
+            const allTodayMenus = await MessMenu.find({ day: dayRegex });
             const freshUser = await User.findById(_id);
-            const currentMessId = freshUser?.messId;
+            const currentMessId = (freshUser?.messId || "").trim().toLowerCase();
             
             let todayMenu = null;
+            
             if (currentMessId) {
-                const messRegex = new RegExp(`^${currentMessId.trim().replace(/-/g, '[- ]')}$`, 'i');
-                todayMenu = await MessMenu.findOne({ day: dayRegex, messId: messRegex });
+                // Try exact match or normalized match
+                todayMenu = allTodayMenus.find(m => 
+                    m.messId.toLowerCase().trim() === currentMessId ||
+                    m.messId.toLowerCase().trim().replace(/-/g, ' ') === currentMessId.replace(/-/g, ' ')
+                );
             }
 
-            // 2. Fallback 1: Try Default Mess
+            // Fallback 1: Default Mess
             if (!todayMenu) {
-                todayMenu = await MessMenu.findOne({ day: dayRegex, messId: /Default Mess/i });
+                todayMenu = allTodayMenus.find(m => m.messId.toLowerCase().includes('default'));
             }
 
-            // 3. Fallback 2: Pick the first available mess (to sync with MessMenu page logic)
-            if (!todayMenu) {
-                todayMenu = await MessMenu.findOne({ day: dayRegex });
+            // Fallback 2: First available (only if the user said they wanted it to match MessMenu exactly)
+            if (!todayMenu && allTodayMenus.length > 0) {
+                todayMenu = allTodayMenus[0];
             }
+            
+            // Re-assign freshUser for other stats
 
             const roommates = await User.find({
                 roomNumber: freshUser?.roomNumber,

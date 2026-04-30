@@ -32,13 +32,22 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
-// 1. IMPORTANT: CORS must be handled for Express
+// 1. CORS Configuration
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://hostel-management-system-him.vercel.app",
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
-    credentials: true
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// 2. Initialize Socket.io AFTER CORS middleware
+// 2. Initialize Socket.io
 initSocket(server);
 
 app.use(morgan("dev"));

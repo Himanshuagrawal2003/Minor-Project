@@ -57,14 +57,14 @@ export const sendNotification = async ({ recipient, sender, type, title, message
     // 1. Save to database if it's for a specific user
     // (If recipient is a role like 'warden', we might need to handle it differently 
     // but for now let's assume it's a userId or we handle roles separately)
-    
+
     // 1. Save to database only if recipient is a valid User ID (ObjectId)
     // For roles like 'student', 'warden', etc., we just emit the real-time event
     const isRole = ['student', 'warden', 'admin', 'staff', 'chief-warden'].includes(recipient);
-    
+
     let notification;
     if (!isRole) {
-       notification = await Notification.create({
+      notification = await Notification.create({
         recipient,
         sender,
         type,
@@ -77,7 +77,7 @@ export const sendNotification = async ({ recipient, sender, type, title, message
     // 2. Emit real-time event
     const io = getIO();
     console.log(`📢 Emitting notification to room: ${recipient} | Title: ${title}`);
-    
+
     io.to(recipient).emit("notification", {
       _id: notification?._id,
       type,

@@ -67,38 +67,38 @@ export const getDashboard = async (req, res) => {
             const today = days[new Date().getDay()];
             const dayRegex = new RegExp(`^${today}$`, 'i');
 
-            // Try to find menu for specific mess
-            let todayMenu = null;
-            const currentMessId = req.user.messId;
+            // 1. Fetch fresh user data to ensure latest messId is used
+            const freshUser = await User.findById(_id);
+            const currentMessId = freshUser?.messId;
             
+            let todayMenu = null;
             if (currentMessId) {
-                // Robust matching: case-insensitive, ignores dash/space differences
                 const messRegex = new RegExp(`^${currentMessId.trim().replace(/-/g, '[- ]')}$`, 'i');
                 todayMenu = await MessMenu.findOne({ day: dayRegex, messId: messRegex });
             }
 
-            // Fallback 1: Try Default Mess
+            // 2. Fallback 1: Try Default Mess
             if (!todayMenu) {
                 todayMenu = await MessMenu.findOne({ day: dayRegex, messId: /Default Mess/i });
             }
 
-            // Fallback 2: Any menu available for today (since user says it is "decided")
+            // 3. Fallback 2: Pick the first available mess (to sync with MessMenu page logic)
             if (!todayMenu) {
                 todayMenu = await MessMenu.findOne({ day: dayRegex });
             }
 
             const roommates = await User.find({
-                roomNumber: req.user.roomNumber,
-                block: req.user.block,
+                roomNumber: freshUser?.roomNumber,
+                block: freshUser?.block,
                 _id: { $ne: _id },
                 role: "student"
             }).select("name contact customId").lean();
 
-            let buildingType = req.user.buildingType;
-            let roomId = req.user.roomId;
+            let buildingType = freshUser?.buildingType;
+            let roomId = freshUser?.roomId;
 
-            if ((!buildingType || !roomId) && req.user.roomNumber) {
-                const room = await Room.findOne({ number: req.user.roomNumber, block: req.user.block });
+            if ((!buildingType || !roomId) && freshUser?.roomNumber) {
+                const room = await Room.findOne({ number: freshUser.roomNumber, block: freshUser.block });
                 if (room) {
                     buildingType = room.type;
                     roomId = `${room.type}-${room.block}-${room.number}`;
@@ -109,16 +109,14 @@ export const getDashboard = async (req, res) => {
             // --- EMERGENCY CONTACTS FILTERING ---
             let effectiveBuildingType = buildingType;
             
-            // If buildingType is missing but roomNumber exists, try to derive it
-            if (!effectiveBuildingType && req.user.roomNumber) {
-                const room = await Room.findOne({ number: req.user.roomNumber, block: req.user.block });
+            if (!effectiveBuildingType && freshUser?.roomNumber) {
+                const room = await Room.findOne({ number: freshUser.roomNumber, block: freshUser.block });
                 if (room) {
                     effectiveBuildingType = room.type;
-                    // Also update user record for next time
                     await User.findByIdAndUpdate(_id, { buildingType: effectiveBuildingType });
-                } else if (req.user.roomNumber.startsWith('B-')) {
+                } else if (freshUser.roomNumber.startsWith('B-')) {
                     effectiveBuildingType = 'Boys';
-                } else if (req.user.roomNumber.startsWith('G-')) {
+                } else if (freshUser.roomNumber.startsWith('G-')) {
                     effectiveBuildingType = 'Girls';
                 }
             }
@@ -142,11 +140,11 @@ export const getDashboard = async (req, res) => {
                 myResolved,
                 myLeaves,
                 todayMenu: todayMenu || null,
-                roomNumber: req.user.roomNumber || "Pending",
-                block: req.user.block || "",
+                roomNumber: freshUser?.roomNumber || "Pending",
+                block: freshUser?.block || "",
                 buildingType: buildingType || "",
                 roomId: roomId || "",
-                messId: req.user.messId || "",
+                messId: currentMessId || "",
                 roommates: roommates || [],
                 contacts: contacts || []
             };

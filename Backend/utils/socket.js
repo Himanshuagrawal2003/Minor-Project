@@ -4,9 +4,16 @@ import Notification from "../models/Notification.js";
 let io;
 
 export const initSocket = (server) => {
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://hostel-management-system-him.vercel.app",
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+
   io = new Server(server, {
     cors: {
-      origin: ["http://localhost:5173", "http://localhost:3000"], // Add your frontend URLs
+      origin: allowedOrigins,
       methods: ["GET", "POST"],
       credentials: true
     },
@@ -24,8 +31,9 @@ export const initSocket = (server) => {
 
     // Join role-based rooms (e.g., 'warden', 'admin')
     socket.on("joinRole", (role) => {
-      socket.join(role);
-      console.log(`👤 User ${socket.id} joined ROLE room: ${role}`);
+      const normalizedRole = role.toLowerCase();
+      socket.join(normalizedRole);
+      console.log(`👤 User ${socket.id} joined ROLE room: ${normalizedRole}`);
     });
 
     socket.on("disconnect", () => {

@@ -1,6 +1,7 @@
 import MessMenu from '../models/MessMenu.js';
 import User from '../models/User.js';
 import Mess from '../models/Mess.js';
+import { sendNotification } from "../utils/socket.js";
 
 // Mess Model CRUD
 export const createMess = async (req, res) => {
@@ -85,6 +86,16 @@ export const updateMenu = async (req, res) => {
       { meals, updatedAt: Date.now() },
       { new: true, upsert: true }
     );
+
+    // Notify students about menu update
+    await sendNotification({
+      recipient: "student",
+      type: "mess",
+      title: "Mess Menu Updated",
+      message: `The ${day} menu for ${messId || 'Default Mess'} has been updated.`,
+      link: ""
+    });
+
     res.json(menu);
   } catch (err) {
     res.status(400).json({ message: err.message });

@@ -41,7 +41,10 @@ function App() {
   return (
     <SocketProvider user={user}>
       <BrowserRouter>
-        <Toaster position="top-right" reverseOrder={false} />
+        <Toaster 
+          position={window.innerWidth < 768 ? "top-center" : "top-right"} 
+          reverseOrder={false} 
+        />
         <Routes>
 
           {/* 🔓 Public Routes */}

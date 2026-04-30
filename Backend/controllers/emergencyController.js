@@ -59,6 +59,18 @@ export const updateEmergencyStatus = async (req, res) => {
       update.resolvedAt = new Date();
     }
     const emergency = await Emergency.findByIdAndUpdate(req.params.id, update, { new: true });
+    
+    if (emergency && status) {
+        // Notify Student about emergency status update
+        await sendNotification({
+            recipient: emergency.studentId.toString(),
+            type: "emergency",
+            title: "SOS Alert Update",
+            message: `Your emergency alert has been marked as ${status}. Remarks: ${remarks || 'None'}`,
+            link: ""
+        });
+    }
+
     res.json(emergency);
   } catch (err) {
     res.status(400).json({ message: err.message });

@@ -49,7 +49,7 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 glass-card shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 w-[92vw] sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:translate-x-0 sm:w-96 bg-white dark:bg-slate-900 glass-card shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           <div className="p-4 border-b border-border flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
             <h3 className="font-bold text-sm">Notifications</h3>
             {notifications.length > 0 && (

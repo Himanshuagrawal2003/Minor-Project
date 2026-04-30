@@ -74,12 +74,17 @@ export const SocketProvider = ({ children, user }) => {
           </div>
         ), { duration: 5000 });
 
-        // Show Browser Desktop Notification if allowed and backgrounded
-        if (Notification.permission === 'granted' && document.hidden) {
-          new Notification("Hostel Management & Complaint System", {
+        // Show Browser Desktop Notification if allowed
+        if ("Notification" in window && Notification.permission === 'granted') {
+          const notificationObj = new Notification("Hostel Management & Complaint System", {
             body: `${notification.title}: ${notification.message}`,
             icon: 'https://i.ibb.co/Q3qdxmyK/logo.png'
           });
+
+          notificationObj.onclick = () => {
+            window.focus();
+            notificationObj.close();
+          };
         }
       });
 

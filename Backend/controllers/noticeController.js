@@ -78,14 +78,16 @@ export const createNotice = async (req, res) => {
     
     await notice.save();
 
-    // Notify relevant roles
+    // Notify relevant roles (Exclude admin from 'all' notifications to reduce noise)
     const rolesToNotify = processedTargetRoles.includes('all') 
-      ? ['student', 'warden', 'admin'] 
-      : processedTargetRoles;
+      ? ['student', 'warden'] 
+      : processedTargetRoles.map(r => r.toLowerCase());
 
-    for (const role of rolesToNotify) {
+    console.log("[Notice] Triggering notifications for roles:", rolesToNotify);
+
+    for (const roleName of rolesToNotify) {
         await sendNotification({
-            recipient: role, // Role-based room
+            recipient: roleName, // Role-based room
             type: "notice",
             title: "New Notice Posted",
             message: title,

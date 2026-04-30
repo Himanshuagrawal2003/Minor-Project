@@ -88,6 +88,17 @@ export const updateComplaint = async (req, res) => {
             });
         }
 
+        // Notify Assigned Staff if assigned for the first time or changed
+        if (assignedStaffId) {
+            await sendNotification({
+                recipient: assignedStaffId.toString(),
+                type: "complaint",
+                title: "New Task Assigned",
+                message: `You have been assigned a new complaint: "${complaint.title}"`,
+                link: ""
+            });
+        }
+
         res.json(updatedComplaint);
     } catch (err) {
         res.status(500).json({ message: err.message });

@@ -14,7 +14,11 @@ export const SocketProvider = ({ children, user }) => {
   useEffect(() => {
     if (user && user._id) {
       console.log("🔗 Attempting socket connection for user:", user._id);
-      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000/api', {
+      const socketUrl = import.meta.env.VITE_API_URL 
+        ? import.meta.env.VITE_API_URL.replace('/api', '') 
+        : 'http://localhost:5000';
+
+      const newSocket = io(socketUrl, {
         path: '/socket.io/',
         transports: ['websocket'],
         withCredentials: true,

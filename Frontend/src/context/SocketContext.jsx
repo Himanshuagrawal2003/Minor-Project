@@ -14,13 +14,12 @@ export const SocketProvider = ({ children, user }) => {
   useEffect(() => {
     if (user && user._id) {
       console.log("🔗 Attempting socket connection for user:", user._id);
-      const newSocket = io('http://localhost:5000', {
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000/api', {
         path: '/socket.io/',
         transports: ['websocket'],
         withCredentials: true,
         autoConnect: true
       });
-      
       newSocket.on('connect', () => {
         console.log("✅ Socket connected!", newSocket.id);
         // Join personal room
@@ -41,13 +40,12 @@ export const SocketProvider = ({ children, user }) => {
       newSocket.on('notification', (notification) => {
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
-        
+
         // Show Toast
         toast.custom((t) => (
           <div
-            className={`${
-              t.visible ? 'animate-enter' : 'animate-leave'
-            } max-w-md w-full bg-white dark:bg-slate-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
+            className={`${t.visible ? 'animate-enter' : 'animate-leave'
+              } max-w-md w-full bg-white dark:bg-slate-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
           >
             <div className="flex-1 w-0 p-4">
               <div className="flex items-start">
@@ -83,7 +81,7 @@ export const SocketProvider = ({ children, user }) => {
 
       return () => newSocket.close();
     }
-  }, [user]);
+  }, [user?._id, user?.role]);
 
   // Request browser notification permission
   useEffect(() => {

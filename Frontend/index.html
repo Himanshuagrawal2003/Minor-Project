@@ -4,8 +4,17 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co/Q3qdxmyK/logo.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hostel Management & Complaint System</title>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(err => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
 </head>
 
 <body>

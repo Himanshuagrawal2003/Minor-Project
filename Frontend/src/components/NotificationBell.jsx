@@ -11,14 +11,27 @@ export function NotificationBell() {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handleEvents = (event) => {
+      // Close if clicked outside
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
+    const handleScroll = () => {
+      if (isOpen) setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleEvents);
+      window.addEventListener('scroll', handleScroll, true); // Use capture to detect any scroll
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleEvents);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [isOpen]);
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
@@ -49,8 +62,8 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 w-[92vw] sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:translate-x-0 sm:w-96 bg-white dark:bg-slate-900 glass-card shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-4 border-b border-border flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 w-[92vw] sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:translate-x-0 sm:w-96 bg-white dark:bg-slate-950 border border-border shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-4 border-b border-border flex items-center justify-between bg-slate-50 dark:bg-slate-900">
             <h3 className="font-bold text-sm">Notifications</h3>
             {notifications.length > 0 && (
               <button 

@@ -75,16 +75,25 @@ export const SocketProvider = ({ children, user }) => {
         ), { duration: 5000 });
 
         // Show Browser Desktop Notification if allowed
-        if ("Notification" in window && Notification.permission === 'granted') {
-          const notificationObj = new Notification("Hostel Management & Complaint System", {
-            body: `${notification.title}: ${notification.message}`,
-            icon: 'https://i.ibb.co/Q3qdxmyK/logo.png'
-          });
-
-          notificationObj.onclick = () => {
-            window.focus();
-            notificationObj.close();
+        // Browser desktop/mobile notification using Service Worker
+        if (Notification.permission === "granted") {
+          const notificationOptions = {
+            body: notification.message,
+            icon: 'https://i.ibb.co/Q3qdxmyK/logo.png',
+            badge: 'https://i.ibb.co/Q3qdxmyK/logo.png',
+            tag: 'hostel-notification-' + Date.now(),
+            data: { url: notification.link || '/notifications' }
           };
+
+          // Use service worker for better mobile/background support
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(registration => {
+              registration.showNotification("Hostel Management & Complaint System", notificationOptions);
+            });
+          } else {
+            // Fallback to standard notification if SW not ready
+            new Notification("Hostel Management & Complaint System", notificationOptions);
+          }
         }
       });
 

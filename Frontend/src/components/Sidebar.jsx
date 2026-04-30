@@ -12,7 +12,8 @@ import {
   ClipboardList,
   BedDouble,
   BellRing,
-  UtensilsCrossed
+  UtensilsCrossed,
+  BookUser
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -42,6 +43,7 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
           { name: 'Mess Menu', path: '/warden/mess-menu', icon: Coffee },
           { name: 'Room Allotment', path: '/warden/room-allotment', icon: BedDouble },
           { name: 'Notice Board', path: '/warden/notices', icon: BellRing },
+          { name: 'Visitors', path: '/warden/visitors', icon: BookUser },
           { name: 'Emergencies', path: '/warden/emergencies', icon: AlertTriangle, danger: true },
         ];
       case 'staff':
@@ -66,6 +68,7 @@ export function Sidebar({ isCollapsed, role, onMobileClose }) {
           { name: 'Leave Approvals', path: '/admin/leave', icon: CalendarDays },
           { name: 'Room Allotment', path: '/admin/room-allotment', icon: BedDouble },
           { name: 'Notice Board', path: '/admin/notices', icon: BellRing },
+          { name: 'Visitors', path: '/admin/visitors', icon: BookUser },
           { name: 'Emergencies', path: '/admin/emergencies', icon: AlertTriangle, danger: true },
         ];
       default:

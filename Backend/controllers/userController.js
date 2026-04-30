@@ -6,6 +6,7 @@ import Leave from "../models/Leave.js";
 import Room from "../models/Room.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendNotification } from "../utils/socket.js";
 
 // ✅ CREATE USER (Manual)
 export const createUser = async (req, res) => {
@@ -301,6 +302,18 @@ export const allotRoom = async (req, res) => {
         }
 
         await user.save();
+
+        // Notify Student about room allotment
+        if (roomNumber) {
+            await sendNotification({
+                recipient: user._id.toString(),
+                type: "room",
+                title: "Room Allotted!",
+                message: `You have been allotted Room ${user.roomNumber} in Block ${user.block}.`,
+                link: ""
+            });
+        }
+
         res.json({ message: "Allotment updated successfully", user });
     } catch (err) {
         res.status(500).json({ message: err.message });

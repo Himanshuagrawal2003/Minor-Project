@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FormInput } from '../components/FormInput';
-import { ShieldCheck, User, UserCheck, Star, Wrench, Building2, ArrowRight, AlertCircle } from 'lucide-react';
+import { ShieldCheck, User, UserCheck, Star, Wrench, Building2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
 
@@ -12,6 +12,11 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showEnquiry, setShowEnquiry] = useState(false);
+  const [enquirySuccess, setEnquirySuccess] = useState(false);
+  const [enquiryData, setEnquiryData] = useState({
+    name: '', phone: '', email: '', college: '', year: '', preferredRoomType: '1 Seater'
+  });
 
   const roles = [
     { id: 'student', label: 'Student', icon: User, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500', ring: 'ring-blue-500/50' },
@@ -63,6 +68,25 @@ export function Login() {
       }
     } catch (err) {
       setError(err?.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEnquirySubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    try {
+      await api.post('/visitors', enquiryData);
+      setEnquirySuccess(true);
+      setEnquiryData({ name: '', phone: '', email: '', college: '', year: '', preferredRoomType: '1 Seater' });
+      setTimeout(() => {
+        setEnquirySuccess(false);
+        setShowEnquiry(false);
+      }, 3000);
+    } catch (err) {
+      setError(err?.message || "Failed to submit enquiry.");
     } finally {
       setIsLoading(false);
     }
@@ -131,11 +155,17 @@ export function Login() {
           </div>
 
           <div className="mb-8 text-center md:text-left">
-            <h2 className="text-3xl font-bold tracking-tight mb-2">Welcome back</h2>
-            <p className="text-muted-foreground">Please select your role to continue</p>
+            <h2 className="text-3xl font-bold tracking-tight mb-2">
+              {showEnquiry ? "Hostel Inquiry" : "Welcome back"}
+            </h2>
+            <p className="text-muted-foreground">
+              {showEnquiry ? "Fill in your details and we'll get back to you" : "Please select your role to continue"}
+            </p>
           </div>
 
-          {/* Role Selector Grid */}
+          {!showEnquiry ? (
+            <>
+              {/* Role Selector Grid */}
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-8">
             {roles.map((role) => (
               <button
@@ -239,7 +269,68 @@ export function Login() {
                 )}
               </button>
             </form>
-          </div>
+              <div className="mt-6 text-center text-sm border-t border-border/50 pt-6">
+                <span className="text-muted-foreground">New to hostel? </span>
+                <button type="button" onClick={() => { setShowEnquiry(true); setError(''); }} className="font-semibold text-primary hover:underline">
+                  Submit an Inquiry
+                </button>
+              </div>
+            </div>
+            </>
+          ) : (
+            <div className="glass-card p-6 sm:p-8 border-t-4 border-primary transition-colors duration-300 animate-in fade-in slide-in-from-right-8">
+              {enquirySuccess ? (
+                <div className="flex flex-col items-center justify-center text-center py-10 space-y-4">
+                  <div className="h-16 w-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mb-4">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-foreground">Inquiry Submitted!</h3>
+                  <p className="text-muted-foreground">We have received your details. Our team will contact you shortly.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleEnquirySubmit} className="space-y-4">
+                  {error && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
+                      <div className="flex items-center gap-2"><AlertCircle size={16} />{error}</div>
+                    </div>
+                  )}
+                  
+                  <FormInput label="Full Name" type="text" value={enquiryData.name} onChange={(e) => setEnquiryData({...enquiryData, name: e.target.value})} placeholder="John Doe" required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormInput label="Phone Number" type="tel" value={enquiryData.phone} onChange={(e) => setEnquiryData({...enquiryData, phone: e.target.value})} placeholder="10-digit number" required />
+                    <FormInput label="Email (Optional)" type="email" value={enquiryData.email} onChange={(e) => setEnquiryData({...enquiryData, email: e.target.value})} placeholder="john@example.com" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormInput label="College" type="text" value={enquiryData.college} onChange={(e) => setEnquiryData({...enquiryData, college: e.target.value})} placeholder="Your College" />
+                    <FormInput label="Year" type="text" value={enquiryData.year} onChange={(e) => setEnquiryData({...enquiryData, year: e.target.value})} placeholder="e.g. 1st Year" />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Preferred Room Type</label>
+                    <select
+                      value={enquiryData.preferredRoomType}
+                      onChange={(e) => setEnquiryData({...enquiryData, preferredRoomType: e.target.value})}
+                      className="w-full h-11 px-4 rounded-xl border border-input bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
+                    >
+                      <option value="1 Seater">1 Seater</option>
+                      <option value="2 Seater">2 Seater</option>
+                      <option value="3 Seater">3 Seater</option>
+                      <option value="4 Seater">4 Seater</option>
+                    </select>
+                  </div>
+
+                  <div className="pt-4 flex items-center gap-3">
+                    <button type="button" onClick={() => { setShowEnquiry(false); setError(''); }} disabled={isLoading} className="h-11 px-6 rounded-xl border border-input text-foreground hover:bg-muted font-medium transition-colors">
+                      Back
+                    </button>
+                    <button type="submit" disabled={isLoading} className="flex-1 h-11 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all shadow-md active:scale-[0.98] disabled:opacity-70">
+                      {isLoading ? <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Submit Inquiry"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
 
         </div>
       </div>

@@ -1,4 +1,5 @@
 import Notice from '../models/Notice.js';
+import { sendNotification } from "../utils/socket.js";
 
 export const getNotices = async (req, res) => {
   try {
@@ -76,6 +77,22 @@ export const createNotice = async (req, res) => {
     });
     
     await notice.save();
+
+    // Notify relevant roles
+    const rolesToNotify = processedTargetRoles.includes('all') 
+      ? ['student', 'warden', 'admin'] 
+      : processedTargetRoles;
+
+    for (const role of rolesToNotify) {
+        await sendNotification({
+            recipient: role, // Role-based room
+            type: "notice",
+            title: "New Notice Posted",
+            message: title,
+            link: ""
+        });
+    }
+
     console.log("[Notice] Created successfully:", notice._id);
     res.status(201).json(notice);
   } catch (err) {

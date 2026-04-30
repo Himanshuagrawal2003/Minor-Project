@@ -1,5 +1,6 @@
 import Emergency from '../models/Emergency.js';
 import User from '../models/User.js';
+import { sendNotification } from "../utils/socket.js";
 
 export const getEmergencies = async (req, res) => {
   try {
@@ -31,6 +32,19 @@ export const createEmergency = async (req, res) => {
       description: req.body.description
     });
     await newEmergency.save();
+
+    // Notify ALL Wardens and Admins about Emergency
+    const rolesToNotify = ['warden', 'admin'];
+    for (const role of rolesToNotify) {
+        await sendNotification({
+            recipient: role,
+            type: "emergency",
+            title: "🚨 EMERGENCY ALERT",
+            message: `${student.name} (Room ${student.roomNumber || 'Unknown'}) triggered a ${req.body.type} alert!`,
+            link: ""
+        });
+    }
+
     res.status(201).json(newEmergency);
   } catch (err) {
     res.status(400).json({ message: err.message });

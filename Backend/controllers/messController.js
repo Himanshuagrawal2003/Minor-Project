@@ -53,7 +53,13 @@ export const deleteMessInstance = async (req, res) => {
 export const getAllMesses = async (req, res) => {
   try {
     // Return unique mess IDs from the menu system
-    const menuMesses = await MessMenu.distinct('messId');
+    let menuMesses = await MessMenu.distinct('messId');
+    
+    // Always ensure "Default Mess" is an option
+    if (!menuMesses.includes('Default Mess')) {
+      menuMesses.push('Default Mess');
+    }
+    
     res.json(menuMesses);
   } catch (err) {
     res.status(500).json({ message: err.message });

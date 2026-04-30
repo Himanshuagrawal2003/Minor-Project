@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Moon, Sun, Menu, User, LogOut } from 'lucide-react';
+import { Moon, Sun, Menu, User, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { NotificationBell } from './NotificationBell';
 
 export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
   const [isDark, setIsDark] = useState(false);
-
   // Initialize theme from localStorage or system preference
   useEffect(() => {
     const isDarkMode = localStorage.getItem('theme') === 'dark' ||
@@ -17,7 +17,6 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
       document.documentElement.classList.add('dark');
     }
   }, []);
-
   const toggleTheme = () => {
     setIsDark(!isDark);
     if (!isDark) {
@@ -61,6 +60,7 @@ export function Navbar({ toggleSidebar, isSidebarCollapsed }) {
       </div>
 
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <button
           onClick={toggleTheme}
           className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/50 transition-colors"

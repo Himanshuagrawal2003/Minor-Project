@@ -23,7 +23,7 @@ export function RoomAllotment() {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
   const [selectedBlock, setSelectedBlock] = useState('A');
-  const [selectedMess, setSelectedMess] = useState('Mess 1');
+  const [selectedMess, setSelectedMess] = useState('Default Mess');
 
   const [uploadSuccess, setUploadSuccess] = useState(null);
   const [uploadError, setUploadError] = useState(null);
@@ -151,7 +151,15 @@ export function RoomAllotment() {
       }
     });
 
-    return Array.from(activeMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const list = Array.from(activeMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    
+    // Explicitly ensure Default Mess is at the top if it exists, or add it if it doesn't
+    const hasDefault = list.some(m => String(m.name || m.messId).toLowerCase() === 'default mess');
+    if (!hasDefault) {
+      list.unshift({ messId: 'Default Mess', name: 'Default Mess', isActive: true });
+    }
+
+    return list;
   }, [backendMesses, students]);
 
   useEffect(() => {

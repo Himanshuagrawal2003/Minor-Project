@@ -1,5 +1,6 @@
 import Complaint from "../models/Complaint.js";
 import User from "../models/User.js";
+import { sendNotification } from "../utils/socket.js";
 
 export const createComplaint = async (req, res) => {
     try {
@@ -22,6 +23,16 @@ export const createComplaint = async (req, res) => {
         });
 
         const createdComplaint = await complaint.save();
+
+        // Notify Warden about new complaint
+        await sendNotification({
+            recipient: "warden",
+            type: "complaint",
+            title: "New Complaint Received",
+            message: `${req.user.name} filed a ${priority} priority complaint: ${title}`,
+            link: ""
+        });
+
         console.log("Complaint created successfully:", createdComplaint._id);
         res.status(201).json(createdComplaint);
     } catch (err) {
@@ -59,11 +70,24 @@ export const updateComplaint = async (req, res) => {
             return res.status(404).json({ message: "Complaint not found" });
         }
 
+        const oldStatus = complaint.status;
         if (status) complaint.status = status;
         if (remarks) complaint.remarks = remarks;
         if (assignedStaffId) complaint.assignedStaffId = assignedStaffId;
 
         const updatedComplaint = await complaint.save();
+
+        // Notify Student if status changed
+        if (status && status !== oldStatus) {
+            await sendNotification({
+                recipient: complaint.studentId.toString(),
+                type: "complaint",
+                title: "Complaint Status Updated",
+                message: `Your complaint "${complaint.title}" is now ${status}.`,
+                link: ""
+            });
+        }
+
         res.json(updatedComplaint);
     } catch (err) {
         res.status(500).json({ message: err.message });
